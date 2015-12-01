@@ -16,7 +16,7 @@ public class Cache {
 	int cycles;
 	
 	//Building Cache.
-	String [][] cache;
+	String [][] content;
 	
 	public Cache(int S, int L, int m, int cycles) {
 		
@@ -29,8 +29,7 @@ public class Cache {
 		
 		this.linesPerBank = C / m;
 		
-		this.cache = new String [m][linesPerBank];
-		
+		this.content = new String [m][linesPerBank];
 	}
 
 }

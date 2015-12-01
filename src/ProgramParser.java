@@ -2,14 +2,14 @@ import java.util.Arrays;
 import java.util.regex.*;
 
 public class ProgramParser {
-	private static String jump = "(JMP)\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s+\\#\\s*.*)?";
-	private static String load = "(LW)\\s+(R[1-7]),\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s+\\#\\s*.*)?";
-	private static String store = "(SW)\\s+(R[0-7]),\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s+\\#\\s*.*)?";
-	private static String branch = "(BEQ)\\s+(R[0-7]),\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s+\\#\\s*.*)?";
-	private static String call = "(JALR)\\s+(R[1-7]),\\s+(R[0-7])(?:\\s+\\#\\s*.*)?";
-	private static String returnCall = "(RET)\\s+(R[0-7])(?:\\s+\\#\\s*.*)?";
-	private static String arithmetic = "(ADD|SUB|NAND|MUL)\\s+(R[1-7]),\\s+(R[0-7]),\\s+(R[0-7])(?:\\s+\\#\\s*.*)?";
-	private static String immediate = "(ADDI)\\s+(R[1-7]),\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s+\\#\\s*.*)?";
+	private static String jump = "(JMP)\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s*\\#.*)?";
+	private static String load = "(LW)\\s+(R[1-7]),\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s*\\#.*)?";
+	private static String store = "(SW)\\s+(R[0-7]),\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s*\\#.*)?";
+	private static String branch = "(BEQ)\\s+(R[0-7]),\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s*\\#.*)?";
+	private static String call = "(JALR)\\s+(R[1-7]),\\s+(R[0-7])(?:\\s*\\#.*)?";
+	private static String returnCall = "(RET)\\s+(R[0-7])(?:\\s*\\#.*)?";
+	private static String arithmetic = "(ADD|SUB|NAND|MUL)\\s+(R[1-7]),\\s+(R[0-7]),\\s+(R[0-7])(?:\\s*\\#.*)?";
+	private static String immediate = "(ADDI)\\s+(R[1-7]),\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s*\\#.*)?";
 
 	public static void main(String[] args) {
 		System.out.println(Arrays.toString(match("JMP R4, 10")));
@@ -19,10 +19,10 @@ public class ProgramParser {
 		System.out.println(Arrays.toString(match("JALR R1, R5")));
 		System.out.println(Arrays.toString(match("RET R0")));
 		System.out.println(Arrays.toString(match("ADD R1, R6, R0")));
-		System.out.println(Arrays.toString(match("ADDI R3, R5, -40 # this is a comment")));
-		System.out.println(Arrays.toString(match("ADDI R3, R5, -40 ; this is not a comment")));
-		System.out.println(Arrays.toString(match("ADDI R3, R5, -65"))); // returns false: Immediate value beyond range [-64, 63]
-		System.out.println(Arrays.toString(match("ADDI R3, R5, 64"))); // returns false: Immediate value beyond range [-64, 63]
+		System.out.println(Arrays.toString(match("ADDI R3, R5, -40# this is a comment")));
+		System.out.println(Arrays.toString(match("ADDI R3, R5, -40; this is not a comment"))); // returns null
+		System.out.println(Arrays.toString(match("ADDI R3, R5, -65"))); // returns null: Immediate value beyond range [-64, 63]
+		System.out.println(Arrays.toString(match("ADDI R3, R5, 64"))); // returns null: Immediate value beyond range [-64, 63]
 	}
 
 	public static String[] match(String string) {

@@ -34,7 +34,7 @@ public class MemoryHierarchy {
 		hierarchy.add(instructions);
 		
 		//For the rest of the levels, add just one cache.
-		for (int i = 1; i < Math.max(numberOfCaches, 4); i++) {
+		for (int i = 1; i < Math.min(numberOfCaches, 3); i++) {
 			Cache y = new Cache(S[i], L, m[i], cycles[i]);
 			hierarchy.add(y);
 		}

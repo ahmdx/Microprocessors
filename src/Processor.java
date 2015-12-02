@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Scanner;
 
 
 public class Processor {
@@ -21,7 +22,8 @@ public class Processor {
 	int ROBsize;
 	int instructionsInROB;
 	
-	ArrayList<String []> fetchedInstructions;
+	ArrayList<String []> fetched;
+	ArrayList<String []> justFetched;
 	
 	ReservationEntry e; // Issued Instruction
 	
@@ -65,7 +67,7 @@ public class Processor {
 	int maxMulInstructions;
 	
 	
-	public Processor() {
+	public Processor(int ROBsize) {
 		PC = 0;
 		
 		regs = new short[8];
@@ -76,6 +78,12 @@ public class Processor {
 		}
 		regs[0] = 0;
 		
+		fetched = new ArrayList<String []>();
+		justFetched = new ArrayList<String []>();
+		
+		rs = new ArrayList<ReservationEntry>();
+		
+		this.ROBsize = ROBsize;
 		ROB = new ArrayList<ROBEntry>();
 		for(int i = 0; i < ROBsize; i++) {
 			ROB.add(null);
@@ -89,19 +97,20 @@ public class Processor {
 	}
 	
 	public void simulate() {
+		// Fetch Stage
 		fetchAll();
 		
-		e = null; // will contain issued instruction
+		e = null; // Will Contain Issued Instruction
 		for(int i = 0; i < instructionsInBuffer; i++) {
-			if(Issue(fetchedInstructions.get(i))) {
-				fetchedInstructions.remove(i);
+			if(Issue(fetched.get(i))) {
+				fetched.remove(i);
 				instructionsInBuffer--;
 				instructionsInROB++;
 				break;
 			}
 		}
 		
-		
+		// Execute Stage
 		int toRemove = -1;
 		for(int i = 0; i < rs.size(); i++) {
 			if(rs.get(i).cyclesLeft == 0) {
@@ -110,14 +119,42 @@ public class Processor {
 			else if (rs.get(i).busy) {
 				execute(rs.get(i));
 			}
+			else if (rs.get(i).qj == -1 && rs.get(i).qk == -1 && (rs.get(i).dest == -1 || regStatus[rs.get(i).dest] == -1)) {
+				rs.get(i).busy = true;
+				if(rs.get(i).dest != -1) regStatus[rs.get(i).dest] = tail;
+				execute(rs.get(i));
+			}
 		}
+		
+		// Commit Stage
+		if(ROB.get(head-1) != null && ROB.get(head-1).ready) {
+			regs[ROB.get(head-1).dest] = ROB.get(head-1).value;
+			regStatus[ROB.get(head-1).dest] = -1;
+			instructionsInROB--;
+			ROB.set(head-1, null);
+			head++; if(head == ROBsize+1) head = 1;
+			
+		}
+		
+		// Write Stage
 		if(toRemove != -1) {
-			e.rob.ready = true;
+			rs.get(toRemove).rob.ready = true;
 			decreaseType(rs.get(toRemove).type);
 			if(rs.get(toRemove).dest != -1) {
-				regs[rs.get(toRemove).dest] = rs.get(toRemove).rob.value;
+				
+			}
+			for(int i = 0; i < rs.size(); i++) {
+				if(rs.get(i).qj == rs.get(toRemove).dest)
+					rs.get(i).qj = -1;
+				if(rs.get(i).qk == rs.get(toRemove).dest)
+					rs.get(i).qk = -1;
 			}
 			rs.remove(toRemove);
+		}
+		
+		while(!justFetched.isEmpty()) {
+			fetched.add(justFetched.remove(0));
+			instructionsInBuffer++;
 		}
 		
 		if(e != null) { // If there is an instruction to be issued
@@ -125,7 +162,6 @@ public class Processor {
 				e.busy = true;
 				if(e.dest != -1) regStatus[e.dest] = tail;
 			}
-			regStatus[e.dest] = tail;
 			short value = computeResult(e.type, e.vj, e.vk, e.a);
 			ROB.set(tail-1, new ROBEntry(e.type, e.dest, value, false));
 			e.rob = ROB.get(tail - 1);
@@ -134,6 +170,10 @@ public class Processor {
 		}
 		
 		cyclesSimulated++;
+		System.out.println("Cycle: " + cyclesSimulated);
+		System.out.println();
+		printAll();
+		System.out.println();
 	}
 	
 	public short computeResult(String type, int vj, int vk, short a) {
@@ -153,9 +193,8 @@ public class Processor {
 	public void fetchAll() {
 		while(instructionsInBuffer < insturctionBuffer) {
 			if(PC / 2 == B.Instructions.size()) break;
-			fetchedInstructions.add(ProgramParser.match(B.Instructions.get(PC / 2)));
+			justFetched.add(ProgramParser.match(B.Instructions.get(PC / 2)));
 			PC += 2;
-			instructionsInBuffer++;
 		}
 	}
 	
@@ -216,11 +255,9 @@ public class Processor {
 
 			if(regStatus[vj] != -1) { // IF not blank
 				qj = regStatus[vj];
-				vj = -1;
 			}
 			if(regStatus[vk] != -1) { // IF not blank
 				qk = regStatus[vk];
-				vk = -1;
 			}
 
 			boolean busy = false;
@@ -244,11 +281,6 @@ public class Processor {
 			byte a = Byte.parseByte(instruction[3]);
 			if(regStatus[vj] != -1) {
 				qj = regStatus[vj];
-				vj = -1;
-			}
-			if(regStatus[vk] != -1) {
-				qk = regStatus[vk];
-				vk = -1;
 			}
 			if(type.equals("LW"))
 				e = new ReservationEntry(busy, type, vj, vk, qj, qk, dest, a, loadCycles);
@@ -265,11 +297,9 @@ public class Processor {
 			byte a = Byte.parseByte(instruction[3]);
 			if(regStatus[vj] != -1) {
 				qj = regStatus[vj];
-				vj = -1;
 			}
 			if(regStatus[vk] != -1) {
 				qk = regStatus[vk];
-				vk = -1;
 			}
 			e = new ReservationEntry(busy, type, vj, vk, qj, qk, dest, a, storeCycles);
 		}
@@ -283,7 +313,6 @@ public class Processor {
 			byte a = Byte.parseByte(instruction[3]);
 			if(regStatus[vj] != -1) {
 				qj = regStatus[vj];
-				vj = -1;
 			}
 			e = new ReservationEntry(busy, type, vj, vk, qj, qk, dest, a, jumpCycles);
 		}
@@ -297,11 +326,9 @@ public class Processor {
 			byte a = Byte.parseByte(instruction[3]);
 			if(regStatus[vj] != -1) {
 				qj = regStatus[vj];
-				vj = -1;
 			}
 			if(regStatus[vk] != 0) {
 				qk = regStatus[vk];
-				vk = -1;
 			}
 			e = new ReservationEntry(busy, type, vj, vk, qj, qk, dest, a, beqCycles);
 		}
@@ -315,7 +342,6 @@ public class Processor {
 			byte a = 0;
 			if(regStatus[vj] != -1) {
 				qj = regStatus[vj];
-				vj = -1;
 			}
 			e = new ReservationEntry(busy, type, vj, vk, qj, qk, dest, a, jalrCycles);
 		}
@@ -329,9 +355,57 @@ public class Processor {
 			byte a = 0;
 			if(regStatus[vj] != -1) {
 				qj = regStatus[vj];
-				vj = -1;
 			}
 			e = new ReservationEntry(busy, type, vj, vk, qj, qk, dest, a, returnCycles);
 		}
+	}
+	
+	public void printAll() {
+		System.out.println("        ROB       ");
+		System.out.println("  Type Dest Value Ready");
+		for(int i = 0; i < ROBsize; i++) {
+			System.out.print((i+1) + " ");
+			if(ROB.get(i) != null) {
+				System.out.format("%-5s", ROB.get(i).type);
+				System.out.format("%-5d", ROB.get(i).dest);
+				System.out.format("%-6d", ROB.get(i).value);
+				System.out.format("%-5b", ROB.get(i).ready);
+			}
+			System.out.println();
+		}
+		System.out.println("        Reservation Stations       ");
+		System.out.println("Busy Op   Vj Vk Qj Qk Dest A   CyclesLeft");
+		for(int i = 0; i < rs.size(); i++) {
+			System.out.format("%-5b", rs.get(i).busy);
+			System.out.format("%-5s", rs.get(i).type);
+			if(rs.get(i).vj != -1) System.out.format("%-3d", rs.get(i).vj); else System.out.print("   ");
+			if(rs.get(i).vk != -1) System.out.format("%-3d", rs.get(i).vk); else System.out.print("   ");
+			if(rs.get(i).qj != -1) System.out.format("%-3d", rs.get(i).qj); else System.out.print("   ");
+			if(rs.get(i).qk != -1) System.out.format("%-3d", rs.get(i).qk); else System.out.print("   ");
+			System.out.format("%-5d", rs.get(i).dest);
+			System.out.format("%-4d", rs.get(i).a);
+			System.out.print(rs.get(i).cyclesLeft);
+			System.out.println();
+		}
+		System.out.println("          Registers status            ");
+		System.out.println("R0 R1 R2 R3 R4 R5 R6 R7");
+		for(int i = 0; i < 8; i++)
+			if(regStatus[i] != -1) System.out.format("%-3d", regStatus[i]); else System.out.print("   ");
+	}
+	
+	public static void main(String[] args) {
+		Scanner sc = new Scanner(System.in);
+		Processor p = new Processor(4);
+		p.addCycles = 2;
+		p.maxAddInstructions = 1;
+		p.addiCycles = 1;
+		p.maxAddiInstructions = 1;
+		p.B.Instructions.add("ADDI R3, R5, -40");
+		p.insturctionBuffer = 4;
+		p.simulate();
+		p.simulate();
+		p.simulate();
+		p.simulate();
+		p.simulate();
 	}
 }

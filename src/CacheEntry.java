@@ -73,10 +73,4 @@ public class CacheEntry {
 	public String toString() {
 		return this.dirty + " " + this.valid + " " + this.tag + " " + Arrays.toString(this.data);
 	}
-
-	public static void main(String[] args) {
-		CacheEntry entry = new CacheEntry(10, new String[] { "a", "ab", "c", "D", "E" });
-
-		System.out.println(entry.toString());
-	}
 }

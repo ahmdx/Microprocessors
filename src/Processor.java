@@ -7,14 +7,15 @@ public class Processor {
 	short[] regs;
 	int[] regStatus;
 	
-	int insturctionBuffer;
-	int instructionsInBuffer;
+	int insturctionBuffer; 
+	int instructionsInBuffer; // Fetched Instructions
 	
-	int cyclesSimulated;
+	int cyclesSimulated; 
 	
-	Battee5aMemory B;
+	Battee5aMemory B; // To Be done
 	
-	ArrayList<ROBEntry> ROB;
+	ArrayList<ROBEntry> ROB; 
+
 	int head;
 	int tail;
 	int ROBsize;
@@ -63,15 +64,16 @@ public class Processor {
 	int maxNandInstructions;
 	int maxMulInstructions;
 	
-	ArrayList<String []> writtenInstructions;
 	
 	public Processor() {
 		PC = 0;
 		
 		regs = new short[8];
 		regStatus = new int[8];
-		for(int i = 0; i < 8; i++)
+
+		for(int i = 0; i < 8; i++) {
 			regStatus[i] = -1;
+		}
 		regs[0] = 0;
 		
 		ROB = new ArrayList<ROBEntry>();
@@ -118,7 +120,7 @@ public class Processor {
 			rs.remove(toRemove);
 		}
 		
-		if(e != null) {
+		if(e != null) { // If there is an instruction to be issued
 			if (e.qj == -1 && e.qk == -1 && (e.dest == -1 || regStatus[e.dest] == -1)) {
 				e.busy = true;
 				if(e.dest != -1) regStatus[e.dest] = tail;
@@ -211,14 +213,16 @@ public class Processor {
 			int dest = Integer.parseInt(instruction[1].substring(1));
 			int qj = -1;
 			int qk = -1;
-			if(regStatus[vj] != -1) {
+
+			if(regStatus[vj] != -1) { // IF not blank
 				qj = regStatus[vj];
 				vj = -1;
 			}
-			if(regStatus[vk] != -1) {
+			if(regStatus[vk] != -1) { // IF not blank
 				qk = regStatus[vk];
 				vk = -1;
 			}
+
 			boolean busy = false;
 			byte a = 0;
 			if(type.equals("ADD"))

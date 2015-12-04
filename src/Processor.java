@@ -98,7 +98,8 @@ public class Processor {
         // Commit Stage
         if (ROB.get(head - 1) != null && ROB.get(head - 1).ready) {
             regs[ROB.get(head - 1).dest] = ROB.get(head - 1).value;
-            regStatus[ROB.get(head - 1).dest] = -1;
+            
+            if (regStatus[ROB.get(head - 1).dest] == head) regStatus[ROB.get(head - 1).dest] = -1;
             instructionsInROB--;
             ROB.set(head - 1, null);
             head++;
@@ -144,7 +145,6 @@ public class Processor {
         
         if (e != null) { // If there is an instruction to be issued
             int value = computeResult(e.type, e.vj, e.vk, e.addr);
-            ROB.set(tail - 1, new ROBEntry(e.type, e.dest, value, false));
             tail++;
             if (tail == ROBsize + 1) {
                 tail = 1;

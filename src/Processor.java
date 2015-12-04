@@ -242,6 +242,10 @@ public class Processor {
 	public void execute(ReservationEntry e) {
 		e.cyclesLeft--;
 	}
+        
+        public void parseInstr (String [] instruction) {
+
+        }
 	
 	public void add(String []instruction) {
 		String type = instruction[0];

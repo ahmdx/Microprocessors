@@ -218,6 +218,7 @@ public class Processor {
             }
             ROBEntry sd = new ROBEntry(instr.getInstrType(), rd, 0, false); // FIx -1 thingy
             ROB.set(tail - 1, sd);
+            return true;
         }
 
         return false;

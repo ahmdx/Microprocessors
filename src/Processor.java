@@ -30,41 +30,9 @@ public class Processor {
     // Reservation Stations
     ArrayList<ReservationEntry> rs;
 
-    int loadCycles;
-    int storeCycles;
-    int jumpCycles;
-    int beqCycles;
-    int jalrCycles;
-    int returnCycles;
-    int addCycles;
-    int addiCycles;
-    int subCycles;
-    int nandCycles;
-    int mulCycles;
-
-    int loadInstructions;
-    int storeInstructions;
-    int jumpInstructions;
-    int beqInstructions;
-    int jalrInstructions;
-    int returnInstructions;
-    int addInstructions;
-    int addiInstructions;
-    int subInstructions;
-    int nandInstructions;
-    int mulInstructions;
-
-    int maxLoadInstructions;
-    int maxStoreInstructions;
-    int maxJumpInstructions;
-    int maxBeqInstructions;
-    int maxJalrInstructions;
-    int maxReturnInstructions;
-    int maxAddInstructions;
-    int maxAddiInstructions;
-    int maxSubInstructions;
-    int maxNandInstructions;
-    int maxMulInstructions;
+    int[] cycles = new int[11];
+    int[] numCycles = new int[11];
+    int[] maxInstrs = new int[11];
 
     public Processor(int ROBsize) {
         PC = 0;
@@ -98,8 +66,10 @@ public class Processor {
         // Commit Stage
         if (ROB.get(head - 1) != null && ROB.get(head - 1).ready) {
             regs[ROB.get(head - 1).dest] = ROB.get(head - 1).value;
-            
-            if (regStatus[ROB.get(head - 1).dest] == head) regStatus[ROB.get(head - 1).dest] = -1;
+
+            if (regStatus[ROB.get(head - 1).dest] == head) {
+                regStatus[ROB.get(head - 1).dest] = -1;
+            }
             instructionsInROB--;
             ROB.set(head - 1, null);
             head++;
@@ -108,13 +78,13 @@ public class Processor {
             }
 
         }
-        
+
         // Write Stage
         for (int i = 0; i < rs.size(); i++) {
             if (rs.get(i).cyclesLeft == 0) {
                 ROB.get(rs.get(i).dest - 1).ready = true;
 
-                //decreaseType(rs.get(i).type);
+                decreaseType(rs.get(i).type); // Todo unsure
                 for (int j = 0; j < rs.size(); j++) {
                     if (rs.get(j).qj == rs.get(i).dest) {
                         rs.get(j).qj = -1;
@@ -124,25 +94,25 @@ public class Processor {
                     }
                 }
                 rs.remove(i);
-            	break;
+                break;
             }
         }
 
         // Execute Stage
         for (int i = 0; i < rs.size(); i++) {
-        	if (rs.get(i).qj == -1 && rs.get(i).qk == -1) {
+            if (rs.get(i).qj == -1 && rs.get(i).qk == -1) {
                 execute(rs.get(i));
-            }   
+            }
         }
-        
+
         //Issue Stage
         e = null; // Will Contain Issued Instruction
         if (fetched.size() > 0 && Issue(fetched.get(0))) {
-        	fetched.remove(0);
-        	instructionsInBuffer--;
-        	instructionsInROB++;
+            fetched.remove(0);
+            instructionsInBuffer--;
+            instructionsInROB++;
         }
-        
+
         if (e != null) { // If there is an instruction to be issued
             int value = computeResult(e.type, e.vj, e.vk, e.addr);
             tail++;
@@ -151,7 +121,7 @@ public class Processor {
             }
             rs.add(e);
         }
-        
+
         // Fetch Stage
         fetchAll();
 
@@ -192,128 +162,69 @@ public class Processor {
         }
     }
 
-    public boolean Issue(String[] instruction) {
+    public boolean Issue(String[] strInstr) {
         if (instructionsInROB == ROBsize) {
             return false;
         }
-        switch (instruction[0]) {
-            case "LW":
-                if (loadInstructions < maxLoadInstructions) {
-                    add(instruction);
-                    loadInstructions++;
-                    return true;
+
+        Instruction instr = new Instruction(strInstr);
+        int idx = instr.getInstrType().ordinal();
+        if (numCycles[idx] >= maxInstrs[idx]) {
+
+            int rd = instr.getRegA();
+            int rs = instr.getRegB();
+            int rt = instr.getRegB();
+            int addr = instr.getImm(); // ADDi is an exception ? and check -1 bug
+
+            int vj = 0;
+            int vk = 0;
+            int qj = -1;
+            int qk = -1;
+
+            if (rs != 0) {
+                if (regStatus[rs] != -1) { // If not busy
+                    int h = regStatus[rs];
+                    if (ROB.get(h).ready) {
+                        vj = ROB.get(h).value;
+                    } else {
+                        qj = h;
+                    }
+                } else {
+                    vj = regs[rs];
                 }
-                break;
-            case "SW":
-                if (storeInstructions < maxStoreInstructions) {
-                    add(instruction);
-                    storeInstructions++;
-                    return true;
+            }
+
+            if (rt != 0) {
+                if (regStatus[rt] != -1) { // If not busy
+                    int h = regStatus[rt];
+                    if (ROB.get(h).ready) {
+                        vk = ROB.get(h).value;
+                    } else {
+                        qj = h;
+                    }
+                } else {
+                    vk = regs[rt];
                 }
-                break;
-            case "JMP":
-                if (jumpInstructions < maxJumpInstructions) {
-                    add(instruction);
-                    jumpInstructions++;
-                    return true;
-                }
-                break;
-            case "BEQ":
-                if (beqInstructions < maxBeqInstructions) {
-                    add(instruction);
-                    beqInstructions++;
-                    return true;
-                }
-                break;
-            case "JALR":
-                if (jalrInstructions < maxJalrInstructions) {
-                    add(instruction);
-                    jalrInstructions++;
-                    return true;
-                }
-                break;
-            case "RET":
-                if (returnInstructions < maxReturnInstructions) {
-                    add(instruction);
-                    returnInstructions++;
-                    return true;
-                }
-                break;
-            case "ADD":
-                if (addInstructions < maxAddInstructions) {
-                    add(instruction);
-                    addInstructions++;
-                    return true;
-                }
-                break;
-            case "SUB":
-                if (subInstructions < maxSubInstructions) {
-                    add(instruction);
-                    subInstructions++;
-                    return true;
-                }
-                break;
-            case "ADDI":
-                if (addiInstructions < maxAddiInstructions) {
-                    add(instruction);
-                    addiInstructions++;
-                    return true;
-                }
-                break;
-            case "NAND":
-                if (nandInstructions < maxNandInstructions) {
-                    add(instruction);
-                    nandInstructions++;
-                    return true;
-                }
-                break;
-            case "MUL":
-                if (mulInstructions < maxMulInstructions) {
-                    add(instruction);
-                    mulInstructions++;
-                    return true;
-                }
-                break;
+            }
+
+            boolean busy = true;
+            int dest = head;
+
+            int cycles = numCycles[instr.getInstrType().ordinal()];
+            e = new ReservationEntry(busy, instr.getInstrType(), vj, vk, qj, qk, dest, addr, cycles);
+
+            if (instr.getInstrType() != InstrType.SW) {
+                regStatus[rd] = head;
+            }
+            ROBEntry sd = new ROBEntry(instr.getInstrType(), rd, 0, false); // FIx -1 thingy
+            ROB.set(tail - 1, sd);
         }
+
         return false;
     }
 
-    public void decreaseType(String type) {
-        switch (type) {
-            case "LW":
-                loadInstructions--;
-                break;
-            case "SW":
-                storeInstructions--;
-                break;
-            case "JMP":
-                jumpInstructions--;
-                break;
-            case "BEQ":
-                beqInstructions--;
-                break;
-            case "JALR":
-                jalrInstructions--;
-                break;
-            case "RET":
-                returnInstructions--;
-                break;
-            case "ADD":
-                addInstructions--;
-                break;
-            case "SUB":
-                subInstructions--;
-                break;
-            case "ADDI":
-                addiInstructions--;
-                break;
-            case "NAND":
-                nandInstructions--;
-                break;
-            case "MUL":
-                mulInstructions--;
-                break;
-        }
+    public void decreaseType(InstrType type) {
+        numCycles[type.ordinal()]--;
     }
 
     public boolean canExecute(ReservationEntry e) {
@@ -325,62 +236,6 @@ public class Processor {
 
     public void execute(ReservationEntry e) {
         e.cyclesLeft--;
-    }
-
-    public void parseInstr(String[] instruction) {
-
-    }
-
-    public void add(String[] instruction) {
-        Instruction i = new Instruction(instruction);
-
-        int rd = i.getRegA();
-        int rs = i.getRegB();
-        int rt = i.getRegB();
-        int addr = i.getImm(); // ADDi is an exception ? and check -1 bug
-
-        int vj = 0;
-        int vk = 0;
-        int qj = -1;
-        int qk = -1;
-
-        if (rs != 0) {
-            if (regStatus[rs] != -1) { // If not busy
-                int h = regStatus[rs];
-                if (ROB.get(h).ready) {
-                    vj = ROB.get(h).value;
-                } else {
-                    qj = h;
-                }
-            } else {
-                vj = regs[rs];
-            }
-        }
-
-        if (rt != 0) {
-            if (regStatus[rt] != -1) { // If not busy
-                int h = regStatus[rt];
-                if (ROB.get(h).ready) {
-                    vk = ROB.get(h).value;
-                } else {
-                    qj = h;
-                }
-            } else {
-                vk = regs[rt];
-            }
-        }
-
-        boolean busy = true;
-        int dest = head;
-
-        e = new ReservationEntry(busy, i.getInstrType(), vj, vk, qj, qk, dest, addr, addCycles);
-
-        if (i.getInstrType() != InstrType.SW) {
-            regStatus[rd] = head;
-        }
-        ROBEntry sd = new ROBEntry(i.getInstrType(), rd, 0, false); // FIx -1 thingy
-        ROB.set(tail - 1, sd);
-
     }
 
     public void printAll() {
@@ -439,10 +294,10 @@ public class Processor {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         Processor p = new Processor(4);
-        p.addCycles = 2;
-        p.maxAddInstructions = 1;
-        p.addiCycles = 1;
-        p.maxAddiInstructions = 1;
+        p.cycles[InstrType.ADD.ordinal()] = 2;
+        p.maxInstrs[InstrType.ADD.ordinal()] = 1;
+        p.numCycles[InstrType.ADDI.ordinal()] = 1;
+        p.maxInstrs[InstrType.ADDI.ordinal()] = 1;
         p.B.Instructions.add("ADDI R3, R5, -40");
         p.insturctionBuffer = 4;
         p.simulate();

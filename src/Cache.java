@@ -231,4 +231,5 @@ public class Cache {
 		// cache.write(4, "test");
 		// System.out.println(cache.read(4));
 	}
+
 }

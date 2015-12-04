@@ -9,7 +9,6 @@ public class ReservationEntry {
 	int dest;
 	int cyclesLeft;
 	byte a;
-	ROBEntry rob;
 	
 	public ReservationEntry(boolean busy, String type, int vj, int vk, int qj, int qk, int dest, byte a, int cyclesLeft) {
 		this.busy = busy;

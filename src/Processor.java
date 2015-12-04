@@ -138,7 +138,8 @@ public class Processor {
 		
 		// Write Stage
 		if(toRemove != -1) {
-			rs.get(toRemove).rob.ready = true;
+			ROB.get(toRemove).ready = true;
+                        
 			decreaseType(rs.get(toRemove).type);
 			if(rs.get(toRemove).dest != -1) {
 				
@@ -164,7 +165,6 @@ public class Processor {
 			}
 			short value = computeResult(e.type, e.vj, e.vk, e.a);
 			ROB.set(tail-1, new ROBEntry(e.type, e.dest, value, false));
-			e.rob = ROB.get(tail - 1);
 			tail++; if(tail == ROBsize+1) tail = 1;
 			rs.add(e);
 		}

@@ -31,7 +31,7 @@ public class Processor {
     ArrayList<ReservationEntry> rs;
 
     int[] cycles = new int[11];
-    int[] numCycles = new int[11];
+    int[] numInstrs = new int[11];
     int[] maxInstrs = new int[11];
 
     public Processor(int ROBsize) {
@@ -169,7 +169,7 @@ public class Processor {
 
         Instruction instr = new Instruction(strInstr);
         int idx = instr.getInstrType().ordinal();
-        if (numCycles[idx] >= maxInstrs[idx]) {
+        if (numInstrs[idx] >= maxInstrs[idx]) {
 
             int rd = instr.getRegA();
             int rs = instr.getRegB();
@@ -210,7 +210,7 @@ public class Processor {
             boolean busy = true;
             int dest = head;
 
-            int cycles = numCycles[instr.getInstrType().ordinal()];
+            int cycles = numInstrs[instr.getInstrType().ordinal()];
             e = new ReservationEntry(busy, instr.getInstrType(), vj, vk, qj, qk, dest, addr, cycles);
 
             if (instr.getInstrType() != InstrType.SW) {
@@ -225,7 +225,7 @@ public class Processor {
     }
 
     public void decreaseType(InstrType type) {
-        numCycles[type.ordinal()]--;
+        numInstrs[type.ordinal()]--;
     }
 
     public boolean canExecute(ReservationEntry e) {
@@ -297,7 +297,7 @@ public class Processor {
         Processor p = new Processor(4);
         p.cycles[InstrType.ADD.ordinal()] = 2;
         p.maxInstrs[InstrType.ADD.ordinal()] = 1;
-        p.numCycles[InstrType.ADDI.ordinal()] = 1;
+        p.numInstrs[InstrType.ADDI.ordinal()] = 1;
         p.maxInstrs[InstrType.ADDI.ordinal()] = 1;
         p.B.Instructions.add("ADDI R3, R5, -40");
         p.insturctionBuffer = 4;

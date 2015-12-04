@@ -2,7 +2,6 @@
 public class ReservationEntry {
 
     InstrType type;
-    boolean busy;
     int vj;
     int vk;
     int qj;
@@ -12,7 +11,6 @@ public class ReservationEntry {
     int addr; // Might change type according to mem implementation
 
     public ReservationEntry(boolean busy, InstrType type, int vj, int vk, int qj, int qk, int dest, int addr, int cyclesLeft) {
-        this.busy = busy;
         this.type = type;
         this.vj = vj;
         this.vk = vk;

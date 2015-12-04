@@ -1,12 +1,12 @@
 
 public class ROBEntry {
-	String type;
+	InstrType instruction;
 	int dest;
-	short value;
+	int value;
 	boolean ready;
 	
-	public ROBEntry(String type, int dest, short value, boolean ready) {
-		this.type = type;
+	public ROBEntry(InstrType instruction, int dest, int value, boolean ready) {
+		this.instruction = instruction;
 		this.dest = dest;
 		this.value = value;
 		this.ready = ready;

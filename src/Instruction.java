@@ -25,7 +25,7 @@ public class Instruction {
 
     private InstrType instrType;
     private int regA = 0, regB = 0, regC = 0;
-    private int imm;
+    private int imm = -1;
 
     private int parseField(String[] strInstr, int field) {
 
@@ -35,7 +35,7 @@ public class Instruction {
     public Instruction(String[] strInstr) {
         instrType = InstrType.valueOf(strInstr[0]);
 
-        switch (instrType.getType()) {
+        switch (instrType.getCategory()) {
             case 1:
                 regA = parseField(strInstr, 1);
                 regB = parseField(strInstr, 2);

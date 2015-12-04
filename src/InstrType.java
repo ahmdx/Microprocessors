@@ -5,37 +5,37 @@
  */
 
 /*
-
- Type 1
+ Categories
+ Cat 1
  op regA, regB, Imm
 
- Type 2
+ Cat 2
  op regA, Imm
 
- Type 3 
+ Cat 3 
  op regA, regB
 
- Type 4
+ Cat 4
  op regA
     
- Type 5
+ Cat 5
  op regA, regB, regC
  */
 public enum InstrType {
 
-    LW(1), SW(1), BEQ(1),
-    JMP(2), ADDI(2),
+    LW(1), SW(1), BEQ(1), ADDI(1),
+    JMP(2),
     JALR(3),
     RET(4),
     ADD(5), SUB(5), NAND(5), MUL(5);
 
-    private int type;
+    private int category;
 
-    public int getType() {
-        return type;
+    public int getCategory() {
+        return category;
     }
 
     InstrType(int type) {
-        this.type = type;
+        this.category = type;
     }
 }

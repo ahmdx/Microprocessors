@@ -1,45 +1,64 @@
+import java.util.Arrays;
+import java.util.Random;
 
 public class Cache {
 
 	// Cache Dimensions.
-	int S; // Cache Capacity. C * L ... S is in KiloBytes.
-	int L; // Line Size.
-	int m; // Number of Banks.
+	private int S; // Cache Capacity. C * L ... S is in KiloBytes.
+	private int L; // Line Size.
+	private int m; // Number of Banks.
 
-	int C; // Number of Cache Lines.
+	private int C; // Number of Cache Lines.
 
-	int lines;
+	//
+	// Lines per bank
+	//
+	private int lines;
 
-	int accesses;
-	int misses;
+	private int accesses;
+	private int misses;
 
 	//
 	// Number of cycles to fetch the data
 	//
-	int cycles;
+	private int cycles;
 
 	//
 	// byte displacement and index number of bits
 	//
-	int d, i;
+	private int d, i;
 
-	//
-	// Write hit and miss policies
-	// writeHit: false for Write through and true for Write back
-	// writeMiss: false for Write allocate and true for Write around
-	//
+	private CacheWriteHitPolicy writeHitPolicy;
+	// private CacheWriteMissPolicy writeMissPolicy;
 
-	private boolean writeHit;
-	private boolean writeMiss;
-
-	CacheEntry[][] content;
+	private CacheEntry[][] content;
 
 	public Cache(int S, int L, int m, int cycles) {
-
 		this.S = S;
 		this.L = L;
 		this.m = m;
 		this.cycles = cycles;
+		this.writeHitPolicy = CacheWriteHitPolicy.WriteThrough;
+		// this.writeHitPolicy = CacheWriteHitPolicy.WriteBack;
+		// this.writeMissPolicy = CacheWriteMissPolicy.WriteAllocate;
+
+		this.C = S / L;
+
+		this.lines = C / m;
+
+		this.content = new CacheEntry[this.lines][this.m];
+
+		this.d = (int) (Math.log(this.L) / Math.log(2));
+		this.i = (int) (Math.log(this.lines) / Math.log(2));
+	}
+
+	public Cache(int S, int L, int m, int cycles, CacheWriteHitPolicy hitPolicy, CacheWriteMissPolicy missPolicy) {
+		this.S = S;
+		this.L = L;
+		this.m = m;
+		this.cycles = cycles;
+		this.writeHitPolicy = hitPolicy;
+		// this.writeMissPolicy = missPolicy;
 
 		this.C = (S * 1024) / L;
 
@@ -51,7 +70,11 @@ public class Cache {
 		this.i = (int) (Math.log(this.lines) / Math.log(2));
 	}
 
-	public String read(int address) {
+	public CacheWriteHitPolicy getWriteHitPolicy() {
+		return writeHitPolicy;
+	}
+
+	private int[] getCacheAddress(int address) {
 		String binary = Integer.toBinaryString(0x10000 | address).substring(1);
 
 		int byteOffset = 0;
@@ -63,52 +86,149 @@ public class Cache {
 			index = Integer.parseInt(binary.substring(binary.length() - this.d - this.i, binary.length() - this.d), 2);
 		}
 		int tag = Integer.parseInt(binary.substring(0, binary.length() - this.d - this.i), 2);
+		return new int[] { tag, index, byteOffset };
+	}
+
+	private void setDirtyBit(CacheEntry entry) {
+		if (this.writeHitPolicy == CacheWriteHitPolicy.WriteBack) {
+			entry.setDirty(true);
+		}
+	}
+
+	public void print(int level) {
+		System.out.println("CACHE: ------------------------ LEVEL: " + level);
+		for (int i = 0; i < this.content.length; i++) {
+			for (int j = 0; j < this.content[i].length; j++) {
+				if (this.content[i][j] != null) {
+					System.out.println(this.content[i][j].toString());
+				}
+			}
+		}
+	}
+
+	public String read(int address) {
+
+		int[] addr = getCacheAddress(address);
+		int tag = addr[0];
+		int index = addr[1];
+		int byteOffset = addr[2];
 
 		for (int j = 0; j < this.m; j++) {
 			CacheEntry entry = this.content[index][j];
 			if (entry != null && entry.isValid() && entry.getTag() == tag) {
-				return this.content[0][j].getByte(byteOffset);
+				return entry.getByte(byteOffset);
 			}
 		}
 		return null;
 	}
 
-	/**
-	 * Incomplete implementation
-	 * @param address Byte address
-	 * @param data Data to write
-	 */
-	public void write(int address, String data) {
-		String binary = Integer.toBinaryString(0x10000 | address).substring(1);
+	public String[] readLine(int address) {
 
-		int byteOffset = 0;
-		if (this.d > 0) {
-			byteOffset = Integer.parseInt(binary.substring(binary.length() - this.d, binary.length()), 2);
+		int[] addr = getCacheAddress(address);
+		int tag = addr[0];
+		int index = addr[1];
+
+		for (int j = 0; j < this.m; j++) {
+			CacheEntry entry = this.content[index][j];
+			if (entry != null && entry.isValid() && entry.getTag() == tag) {
+				return entry.getData();
+			}
 		}
-		int index = 0;
-		if (this.i > 0) {
-			index = Integer.parseInt(binary.substring(binary.length() - this.d - this.i, binary.length() - this.d), 2);
-		}
-		int tag = Integer.parseInt(binary.substring(0, binary.length() - this.d - this.i), 2);
-		
+		return null;
+	}
+
+	public String[] write(int address, String data) {
+
+		int[] addr = getCacheAddress(address);
+		int tag = addr[0];
+		int index = addr[1];
+		int byteOffset = addr[2];
+
+		// boolean found = false;
 		for (int j = 0; j < this.m; j++) {
 			CacheEntry entry = this.content[index][j];
 			if (entry != null && entry.isValid()) {
 				if (entry.getTag() == tag) {
-					this.content[0][j].setByte(byteOffset, data);	
+					// found = true;
+					entry.setByte(byteOffset, data);
+					setDirtyBit(entry);
+					return entry.getData();
 				}
-			} else {
-				
 			}
 		}
+
+		return null;
+	}
+
+	public String[] writeLine(int address, String[] data) {
+
+		int[] addr = getCacheAddress(address);
+		int tag = addr[0];
+		int index = addr[1];
+
+		// boolean found = false;
+		for (int j = 0; j < this.m; j++) {
+			CacheEntry entry = this.content[index][j];
+			if (entry != null && entry.isValid()) {
+				if (entry.getTag() == tag) {
+					// found = true;
+					entry.setData(data);
+					setDirtyBit(entry);
+					return entry.getData();
+				}
+			}
+		}
+
+		return null;
+	}
+
+	public void writeMiss(int address, String[] data) {
+
+		int[] addr = getCacheAddress(address);
+		int tag = addr[0];
+		int index = addr[1];
+
+		System.out.println("CWRITE: " + tag + " " + index);
+
+		boolean found = false;
+		for (int j = 0; j < this.m; j++) {
+			CacheEntry entry = this.content[index][j];
+			if (entry != null && entry.isValid()) {
+				if (entry.getTag() == tag) {
+					found = true;
+					entry.setData(data);
+					setDirtyBit(entry);
+				}
+			} else {
+				this.content[index][j] = new CacheEntry(tag, data);
+				setDirtyBit(this.content[index][j]);
+				found = true;
+			}
+		}
+
+		//
+		// All entries are valid in a set and the tags are different, remove a
+		// random entry
+		//
+		if (!found) {
+			Random rand = new Random();
+			int randomEntry = rand.nextInt(m);
+			this.content[index][randomEntry] = new CacheEntry(tag, data);
+			setDirtyBit(this.content[index][randomEntry]);
+		}
+
 	}
 
 	public static void main(String[] args) {
 		Cache cache = new Cache(8, 4, 1, 1);
-		cache.content[0][0] = new CacheEntry(0, new String[] {"a", "b", "c", "d"});
-		cache.content[1][0] = new CacheEntry(0, new String[] {"a", "b", "c", "d"});
-		
-		cache.write(4, "test");
-		System.out.println(cache.read(4));
+		// cache.content[0][0] = new CacheEntry(0, new String[] { "a", "b", "c",
+		// "d" });
+		// cache.content[1][0] = new CacheEntry(0, new String[] { "a", "b", "c",
+		// "d" });
+
+		System.out.println(Arrays.toString(cache.getCacheAddress(4)));
+
+		// cache.write(4, "test");
+		// System.out.println(cache.read(4));
 	}
 }

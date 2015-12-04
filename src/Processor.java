@@ -30,7 +30,7 @@ public class Processor {
     // Reservation Stations
     ArrayList<ReservationEntry> rs;
 
-    int[] cycles = new int[11];
+    int[] numCycles = new int[11];
     int[] numInstrs = new int[11];
     int[] maxInstrs = new int[11];
 
@@ -169,7 +169,7 @@ public class Processor {
 
         Instruction instr = new Instruction(strInstr);
         int idx = instr.getInstrType().ordinal();
-        if (numInstrs[idx] >= maxInstrs[idx]) {
+        if (numInstrs[idx] <= maxInstrs[idx]) {
 
             int rd = instr.getRegA();
             int rs = instr.getRegB();
@@ -210,7 +210,7 @@ public class Processor {
             boolean busy = true;
             int dest = head;
 
-            int cycles = numInstrs[instr.getInstrType().ordinal()];
+            int cycles = numCycles[instr.getInstrType().ordinal()];
             e = new ReservationEntry(busy, instr.getInstrType(), vj, vk, qj, qk, dest, addr, cycles);
 
             if (instr.getInstrType() != InstrType.SW) {
@@ -295,7 +295,8 @@ public class Processor {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         Processor p = new Processor(4);
-        p.cycles[InstrType.ADD.ordinal()] = 2;
+        p.numCycles[InstrType.ADD.ordinal()] = 2;
+        p.numCycles[InstrType.ADDI.ordinal()] = 2;
         p.maxInstrs[InstrType.ADD.ordinal()] = 1;
         p.numInstrs[InstrType.ADDI.ordinal()] = 1;
         p.maxInstrs[InstrType.ADDI.ordinal()] = 1;

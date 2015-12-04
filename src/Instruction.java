@@ -28,8 +28,15 @@ public class Instruction {
     private int imm = -1;
 
     private int parseField(String[] strInstr, int field) {
+        return parseField(strInstr, field, false);
+    }
 
-        return Integer.parseInt(strInstr[field].substring(1));
+    private int parseField(String[] strInstr, int field, boolean imm) {
+        int cnt = 1;
+        if (imm) {
+            cnt = 0;
+        }
+        return Integer.parseInt(strInstr[field].substring(cnt));
     }
 
     public Instruction(String[] strInstr) {
@@ -39,11 +46,11 @@ public class Instruction {
             case 1:
                 regA = parseField(strInstr, 1);
                 regB = parseField(strInstr, 2);
-                imm = parseField(strInstr, 3);
+                imm = parseField(strInstr, 3, true);
                 break;
             case 2:
                 regA = parseField(strInstr, 1);
-                imm = parseField(strInstr, 2);
+                imm = parseField(strInstr, 2, true);
                 break;
             case 3:
                 regA = parseField(strInstr, 1);

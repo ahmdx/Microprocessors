@@ -133,19 +133,8 @@ public class Processor {
     }
 
     public int computeResult(InstrType type, int vj, int vk, int a) {
-        if (type.equals("ADD")) {
-            return (int) (regs[vj] + regs[vk]);
-        }
-        if (type.equals("SUB")) {
-            return (int) (regs[vj] - regs[vk]);
-        }
-        if (type.equals("NAND")) {
-            return (int) ~(regs[vj] & regs[vk]);
-        }
-        if (type.equals("MUL")) {
-            return (int) (regs[vj] * regs[vk]);
-        }
-        if (type.equals("ADDI")) {
+
+        if (type == InstrType.ADDI) {
             return (int) (regs[vj] + a);
         }
         return 0;

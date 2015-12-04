@@ -1,0 +1,10 @@
+/nbproject/private/
+nbproject/project.xml
+
+*.properties
+
+build.xml
+
+manifest.mf
+
+nbproject/build-impl.xml

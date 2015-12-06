@@ -12,6 +12,8 @@ public class Memory {
 	private int size = 64 * 1024;
 	private int cycles;
 	private int L;
+	private int writes;
+	private int reads;
 
 	/**
 	 * 
@@ -32,7 +34,10 @@ public class Memory {
 	 *            Address of data to be read from Memory
 	 * @return The requested byte
 	 */
-	public String read(int address) {
+	public String read(int address, boolean count) {
+		if (count) {
+			this.reads++;
+		}
 		return this.data[Math.min(this.size, address)];
 	}
 
@@ -44,10 +49,11 @@ public class Memory {
 	 *         bytes
 	 */
 	public String[] readLine(int address) {
+		this.reads++;
 		String[] data = new String[this.L];
 		int addr = (address / this.L) * this.L;
 		for (int i = 0; i < this.L; i++) {
-			data[i] = read(addr + i);
+			data[i] = read(addr + i, false);
 		}
 		return data;
 	}
@@ -59,9 +65,12 @@ public class Memory {
 	 * @param data
 	 *            The requested data to write
 	 */
-	public String write(int address, String data) {
+	public String write(int address, String data, boolean count) {
+		if (count) {
+			this.writes++;
+		}
 		this.data[Math.min(this.size, address)] = (data == null) ? "" : data;
-		return read(address);
+		return read(address, false);
 	}
 
 	/**
@@ -72,19 +81,20 @@ public class Memory {
 	 *            The requested data to write
 	 */
 	public String[] writeLine(int address, String[] data) {
+		this.writes++;
 		int addr = (address / this.L) * this.L;
 		for (int i = 0; i < data.length; i++) {
-			write(addr + i, data[i]);
+			write(addr + i, data[i], false);
 		}
 		for (int i = data.length; i < this.L; i++) {
-			write(addr + i, null);
+			write(addr + i, null, false);
 		}
 		
 		return readLine(address);
 	}
 	
 	public void print() {
-		System.out.println("MEMORY: ----------------------");
+		System.out.println("MEMORY: ---------------------- R: " + this.reads + " W: " + this.writes);
 		for (int i = 0; i < data.length; i++) {
 			if (data[i] != null) {
 				System.out.println(i + ": " + data[i]);
@@ -94,11 +104,11 @@ public class Memory {
 	}
 
 	public static void main(String[] args) {
-		Memory mem = new Memory(4, 1);
-		mem.write(1, null);
-
-		mem.writeLine(2, new String[] { "a", "b", "c" });
-		
-		System.out.println(Arrays.toString(mem.readLine(2)));
+//		Memory mem = new Memory(4, 1);
+//		mem.write(1, null);
+//
+//		mem.writeLine(2, new String[] { "a", "b", "c" });
+//		
+//		System.out.println(Arrays.toString(mem.readLine(2)));
 	}
 }

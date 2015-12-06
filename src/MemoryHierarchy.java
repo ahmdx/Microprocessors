@@ -6,14 +6,14 @@ public class MemoryHierarchy {
 	private int numberOfCaches; // Number of Caches
 
 	private int L;
-	// int memoryCycles; // Memory Cycles;
+	private int memoryCycles; // Memory Cycles;
 
 	// int[] S; // Array of cache capacities assuming S[0] is the capacity for
 	// level 1 caches and so on.
 
 	// int[] m; // Array of bank sizes.
 
-	// int[] cycles; // Array of Cache Cycles.
+	private int[] cycles; // Array of Cache Cycles.
 
 	private String instruction = null; // The returned instruction when fetching
 										// an
@@ -27,10 +27,15 @@ public class MemoryHierarchy {
 
 	// The constructor creates all caches and adds them to the hierarchy list,
 	// then adds the main memory.
-	public MemoryHierarchy(int numberOfCaches, int L, int S[], int m[], int cycles[], int memoryCycles) {
+	
+	private int accessCycles;
+	
+	public MemoryHierarchy(int numberOfCaches, int L, int S[], int m[], int cycles[], int memoryCycles) throws InvalidNumberOfBanksException {
 
 		this.numberOfCaches = numberOfCaches;
 		this.L = L;
+		this.cycles = cycles;
+		this.memoryCycles = memoryCycles;
 
 		this.memory = new Memory(L, memoryCycles); // Initialize
 													// memory.
@@ -58,7 +63,8 @@ public class MemoryHierarchy {
 	// Incomplete implementation
 	//
 	public String read(int address) {
-
+//		int this.accessCycles = 0;
+		this.accessCycles = 0;
 		address = address / 2 * 2;
 
 		int missLevel = 0;
@@ -75,8 +81,9 @@ public class MemoryHierarchy {
 		// Checks if data is available in L1 caches
 		// Returns the data if it was available; L1 cache hit
 		//
-
+		this.accessCycles += this.cycles[0];
 		if (res != null) {
+			System.out.println("READ-C: " + this.accessCycles);
 			return res;
 		}
 
@@ -91,7 +98,7 @@ public class MemoryHierarchy {
 		String[] lineContent = new String[] {};
 		for (int i = 2; i < this.caches.size(); i++) {
 			lineContent = this.caches.get(i).readLine(address);
-
+			this.accessCycles += this.cycles[i - 1];
 			//
 			// missLevel = i; Li cache miss; i > 1
 			//
@@ -107,22 +114,27 @@ public class MemoryHierarchy {
 		//
 		if (missLevel == this.caches.size() - 1) {
 			lineContent = this.memory.readLine(address);
+			this.accessCycles += this.memoryCycles;
 			System.out.print("MEM-R: ");
 		}
 
 		for (int i = missLevel - 1; i > 0; i--) {
 			this.caches.get(i + 1).writeMiss(address, lineContent);
+			this.accessCycles += this.cycles[i];
 		}
 		if (data) {
 			this.caches.get(0).writeMiss(address, lineContent);
 		} else {
 			this.caches.get(1).writeMiss(address, lineContent);
 		}
+		this.accessCycles += this.cycles[0];
 
+		System.out.println("READ-C: " + this.accessCycles);
 		return lineContent[getByteOffset(address)];
 	}
 
 	public void write(int address, String content) {
+		this.accessCycles = 0;
 		address = address / 2 * 2;
 
 		int missLevel = 0;
@@ -139,8 +151,10 @@ public class MemoryHierarchy {
 		//
 		if (res != null) {
 			writeHit(1, address, res);
+			System.out.println("WRITE-C: " + this.accessCycles);
 			return;
 		}
+		this.accessCycles += this.cycles[0];
 		//
 		// Write miss at L1
 		//
@@ -152,6 +166,7 @@ public class MemoryHierarchy {
 			// missLevel = i; Li cache miss; i > 1
 			//
 			if (res == null) {
+				this.accessCycles += this.cycles[i - 1];
 				++missLevel;
 			} else {
 				//
@@ -161,7 +176,7 @@ public class MemoryHierarchy {
 				break;
 			}
 		}
-		
+
 		//
 		// Write miss at all cache levels
 		// Write to memory and then to other caches
@@ -170,17 +185,22 @@ public class MemoryHierarchy {
 		if (missLevel == this.caches.size() - 1) {
 			this.memory.write(address, content);
 			res = this.memory.readLine(address);
-			System.out.print("MEM-R: ");
+			this.accessCycles += this.memoryCycles;
+//			System.out.print("MEM-R: ");
 		}
 
 		for (int i = missLevel - 1; i > 0; i--) {
 			this.caches.get(i + 1).writeMiss(address, res);
+			this.accessCycles += this.cycles[i];
 		}
 		if (data) {
 			this.caches.get(0).writeMiss(address, res);
 		} else {
 			this.caches.get(1).writeMiss(address, res);
 		}
+		this.accessCycles += this.cycles[0];
+		
+		System.out.println("WRITE-C: " + this.accessCycles);
 	}
 
 	/**
@@ -194,10 +214,24 @@ public class MemoryHierarchy {
 	 */
 	public void writeHit(int level, int address, String[] lineContent) {
 		System.out.println("HITL: " + level);
+		this.accessCycles += this.cycles[level - 1];
 		for (int i = level + 1; i < this.caches.size(); i++) {
 			this.caches.get(i).writeLine(address, lineContent);
+			this.accessCycles += this.cycles[i - 1];
 		}
 		this.memory.writeLine(address, lineContent);
+		this.accessCycles += this.memoryCycles;
+	}
+	
+	public void writeHitRec(int level, int address, String[] lineContent) {
+		this.accessCycles += this.cycles[level - 1];
+		if (level == this.caches.size() - 1) {
+			this.memory.writeLine(address, lineContent);
+			this.accessCycles += this.memoryCycles;
+			return;
+		}
+		this.caches.get(level + 1).writeLine(address, lineContent);
+		writeHitRec(level + 1, address, lineContent);
 	}
 
 	public int getByteOffset(int address) {
@@ -210,35 +244,38 @@ public class MemoryHierarchy {
 		}
 		return byteOffset;
 	}
+	
+	public void print() {
+		this.memory.print();
+		this.caches.get(0).print(1);
+		this.caches.get(1).print(1);
+		for (int i = 2; i < this.caches.size(); i++) {
+			this.caches.get(i).print(i);
+		}
+	}
+	
+	public static void main(String[] args) throws InvalidNumberOfBanksException {
+		MemoryHierarchy h = new MemoryHierarchy(3, 4, new int[] { 2048, 4096, 8192 }, new int[] { 1, 1, 1 },
+				new int[] { 1, 4, 6 }, 10);
 
-	public static void main(String[] args) {
-		MemoryHierarchy h = new MemoryHierarchy(3, 4, new int[] { 8, 4, 8 }, new int[] { 1, 1, 1 },
-				new int[] { 1, 1, 1 }, 12);
-
-//		h.memory.writeLine(0, new String[] { "1", "", "b", "" });
+		// h.memory.writeLine(0, new String[] { "1", "", "b", "" });
 		// mem.writeLine(4, new String[] {"2", "", "a", ""});
 
-		 h.write(0, "A");
-		h.memory.print();
-
+//		h.memory.writeLine(0, new String[] {"a", "", "B", ""});
+		h.write(0, "A");
 		System.out.println(h.read(0));
-
-		h.caches.get(0).print(1);
-		h.caches.get(1).print(1);
-		for (int i = 2; i < h.caches.size(); i++) {
-			h.caches.get(i).print(i);
-		}
-
+//		h.print();
+		System.out.println();
 		h.write(3, "B");
-		h.memory.print();
-
-		System.out.println(h.read(0));
-
-		h.caches.get(0).print(1);
-		h.caches.get(1).print(1);
-		for (int i = 2; i < h.caches.size(); i++) {
-			h.caches.get(i).print(i);
-		}
+		System.out.println(h.read(3));
+		System.out.println();
+		h.write(12, "A");
+		System.out.println(h.read(12));
+		System.out.println();
+		h.write(38000, "ADDI R1, R2, 8");
+		System.out.println(h.read(38000));
+		System.out.println();
+		h.print();
 	}
 
 }

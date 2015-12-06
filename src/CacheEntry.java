@@ -2,14 +2,12 @@ import java.util.Arrays;
 
 public class CacheEntry {
 	private boolean dirty;
-	private boolean valid;
 	private int tag;
 	private String[] data;
 	private int size;
 
 	public CacheEntry(int size) {
 		this.dirty = false;
-		this.valid = false;
 		this.tag = 0;
 		this.size = size;
 		this.data = new String[size];
@@ -37,14 +35,6 @@ public class CacheEntry {
 		this.dirty = dirty;
 	}
 
-	public boolean isValid() {
-		return valid;
-	}
-
-	public void setValid(boolean valid) {
-		this.valid = valid;
-	}
-
 	public int getTag() {
 		return tag;
 	}
@@ -59,7 +49,6 @@ public class CacheEntry {
 
 	public void setData(String[] data) {
 		this.data = data;
-		setValid(true);
 	}
 
 	public String getByte(int offset) {
@@ -71,6 +60,6 @@ public class CacheEntry {
 	}
 
 	public String toString() {
-		return this.dirty + " " + this.valid + " " + this.tag + " " + Arrays.toString(this.data);
+		return this.dirty + " " + this.tag + " " + Arrays.toString(this.data);
 	}
 }

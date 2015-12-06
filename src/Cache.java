@@ -15,8 +15,8 @@ public class Cache {
 	//
 	private int lines;
 
-	private int accesses;
-	private int misses;
+	private float accesses;
+	private float misses;
 
 	//
 	// Number of cycles to fetch the data
@@ -33,7 +33,7 @@ public class Cache {
 
 	private CacheEntry[][] content;
 
-	public Cache(int S, int L, int m, int cycles) {
+	public Cache(int S, int L, int m, int cycles) throws InvalidNumberOfBanksException {
 		this.S = S;
 		this.L = L;
 		this.m = m;
@@ -43,6 +43,11 @@ public class Cache {
 		// this.writeMissPolicy = CacheWriteMissPolicy.WriteAllocate;
 
 		this.C = S / L;
+
+		if (C < m) {
+			throw new InvalidNumberOfBanksException(
+					"Number of banks cannot be greater than the number of cache entries");
+		}
 
 		this.lines = C / m;
 
@@ -96,7 +101,7 @@ public class Cache {
 	}
 
 	public void print(int level) {
-		System.out.println("CACHE: ------------------------ LEVEL: " + level);
+		System.out.println("CACHE: ------------------------ LEVEL: " + level + " HIT %: " + (1 - this.misses/this.accesses) * 100);
 		for (int i = 0; i < this.content.length; i++) {
 			for (int j = 0; j < this.content[i].length; j++) {
 				if (this.content[i][j] != null) {
@@ -107,7 +112,7 @@ public class Cache {
 	}
 
 	public String read(int address) {
-
+		this.accesses++;
 		int[] addr = getCacheAddress(address);
 		int tag = addr[0];
 		int index = addr[1];
@@ -115,30 +120,32 @@ public class Cache {
 
 		for (int j = 0; j < this.m; j++) {
 			CacheEntry entry = this.content[index][j];
-			if (entry != null && entry.isValid() && entry.getTag() == tag) {
+			if (entry != null && entry.getTag() == tag) {
 				return entry.getByte(byteOffset);
 			}
 		}
+		this.misses++;
 		return null;
 	}
 
 	public String[] readLine(int address) {
-
+		this.accesses++;
 		int[] addr = getCacheAddress(address);
 		int tag = addr[0];
 		int index = addr[1];
 
 		for (int j = 0; j < this.m; j++) {
 			CacheEntry entry = this.content[index][j];
-			if (entry != null && entry.isValid() && entry.getTag() == tag) {
+			if (entry != null && entry.getTag() == tag) {
 				return entry.getData();
 			}
 		}
+		this.misses++;
 		return null;
 	}
 
 	public String[] write(int address, String data) {
-
+		this.accesses++;
 		int[] addr = getCacheAddress(address);
 		int tag = addr[0];
 		int index = addr[1];
@@ -147,7 +154,7 @@ public class Cache {
 		// boolean found = false;
 		for (int j = 0; j < this.m; j++) {
 			CacheEntry entry = this.content[index][j];
-			if (entry != null && entry.isValid()) {
+			if (entry != null) {
 				if (entry.getTag() == tag) {
 					// found = true;
 					entry.setByte(byteOffset, data);
@@ -156,12 +163,12 @@ public class Cache {
 				}
 			}
 		}
-
+		this.misses++;
 		return null;
 	}
 
 	public String[] writeLine(int address, String[] data) {
-
+		this.accesses++;
 		int[] addr = getCacheAddress(address);
 		int tag = addr[0];
 		int index = addr[1];
@@ -169,7 +176,7 @@ public class Cache {
 		// boolean found = false;
 		for (int j = 0; j < this.m; j++) {
 			CacheEntry entry = this.content[index][j];
-			if (entry != null && entry.isValid()) {
+			if (entry != null) {
 				if (entry.getTag() == tag) {
 					// found = true;
 					entry.setData(data);
@@ -178,28 +185,27 @@ public class Cache {
 				}
 			}
 		}
-
+		this.misses++;
 		return null;
 	}
 
 	public void writeMiss(int address, String[] data) {
-
+		this.accesses++;
 		int[] addr = getCacheAddress(address);
 		int tag = addr[0];
 		int index = addr[1];
 
-		System.out.println("CWRITE: " + tag + " " + index);
-
 		boolean found = false;
 		for (int j = 0; j < this.m; j++) {
 			CacheEntry entry = this.content[index][j];
-			if (entry != null && entry.isValid()) {
+			if (entry != null) {
 				if (entry.getTag() == tag) {
 					found = true;
 					entry.setData(data);
 					setDirtyBit(entry);
 				}
 			} else {
+				this.misses++;
 				this.content[index][j] = new CacheEntry(tag, data);
 				setDirtyBit(this.content[index][j]);
 				found = true;
@@ -211,6 +217,7 @@ public class Cache {
 		// random entry
 		//
 		if (!found) {
+			this.misses++;
 			Random rand = new Random();
 			int randomEntry = rand.nextInt(m);
 			this.content[index][randomEntry] = new CacheEntry(tag, data);
@@ -220,13 +227,13 @@ public class Cache {
 	}
 
 	public static void main(String[] args) {
-		Cache cache = new Cache(8, 4, 1, 1);
+		// Cache cache = new Cache(8, 4, 1, 1);
 		// cache.content[0][0] = new CacheEntry(0, new String[] { "a", "b", "c",
 		// "d" });
 		// cache.content[1][0] = new CacheEntry(0, new String[] { "a", "b", "c",
 		// "d" });
 
-		System.out.println(Arrays.toString(cache.getCacheAddress(4)));
+		// System.out.println(Arrays.toString(cache.getCacheAddress(4)));
 
 		// cache.write(4, "test");
 		// System.out.println(cache.read(4));

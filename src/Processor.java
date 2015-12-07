@@ -240,7 +240,7 @@ public class Processor {
 
             int rd = instr.getRegA();
             int rs = instr.getRegB();
-            int rt = instr.getRegB();
+            int rt = instr.getRegC();
             int addr = instr.getImm(); // ADDi is an exception ? and check -1 bug
 
             int vj = 0;

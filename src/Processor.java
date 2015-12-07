@@ -97,6 +97,7 @@ public class Processor {
         			ROB.set(i, null);
         		}
         		
+        		cyclesLeftToFetch = 0;
         		rs.clear();
         		fetched.clear();
         		fetchedAddress.clear();
@@ -204,10 +205,10 @@ public class Processor {
         	return vj + a;
         }
         else if (type == InstrType.JMP) {
-        	return pc+1 + vj + a;
+        	return pc+2 + vj + a;
         }
         else if (type == InstrType.BEQ) {
-        	return pc+1 + a;
+        	return pc+2 + a;
         }
         else if (type == InstrType.JALR) {
         	return vk;
@@ -403,77 +404,79 @@ public class Processor {
     }
 
     public static void main(String[] args) throws InvalidNumberOfBanksException {
-        Scanner sc = new Scanner(System.in);
-        System.out.println("Enter the number of cache Levels");
-        int numCacheLevels = sc.nextInt();
-        
-        int[] S = new int[Math.min(3, numCacheLevels)];
-        int[] m = new int[Math.min(3, numCacheLevels)];
-        CacheWriteHitPolicy[] cacheWriteHitPolicy = new CacheWriteHitPolicy[Math.min(3, numCacheLevels)];    
-        System.out.println("Enter the Line Size L of the cache(s)");
-        int L = sc.nextInt();
-        for(int i = 1; i <= Math.min(3, numCacheLevels); i++) {
-        	System.out.println("Enter S, M and the writing policy (0 for WriteBack, 1 for WriteThrough) of cache #" + i + " (seperated by spaces)");
-        	S[i-1] = sc.nextInt();
-        	m[i-1] = sc.nextInt();
-        	int t = sc.nextInt();
-        	if(t == 0) cacheWriteHitPolicy[i-1] = CacheWriteHitPolicy.WriteBack;
-        	else cacheWriteHitPolicy[i-1] = CacheWriteHitPolicy.WriteThrough;
-        }
-        
-        int[] cycles = new int[Math.min(3, numCacheLevels)];
-        for(int i = 1; i <= Math.min(3, numCacheLevels); i++) {
-        	System.out.println("Enter the access time (in cycles) of Cache #" + i);
-        	cycles[i-1] = sc.nextInt();   	
-        }
-        System.out.println("Enter the main memory access time");
-        int memoryCycles = sc.nextInt();
-        
-        MemoryHierarchy M = new MemoryHierarchy(numCacheLevels, L, S, m, cycles, memoryCycles, cacheWriteHitPolicy);
-        
-        System.out.println("Enter the pipeline width");
-        int pipelineWidth = sc.nextInt();
-        
-        System.out.println("Enter the size of the instruction buffer (queue)");
-        int insturctionBuffer = sc.nextInt();
-        
-        int[] maxInstrs = new int[11];
-        System.out.println("Enter the number of reservation stations for each of the following instructions (seperated by spaces)");
-        System.out.println("LW, SW, JMP, BEQ, JALR, RET, ADD, SUB, ADDI, NAND, MUL");
-        maxInstrs[InstrType.LW.ordinal()] = sc.nextInt();
-        maxInstrs[InstrType.SW.ordinal()] = sc.nextInt();
-        maxInstrs[InstrType.JMP.ordinal()] = sc.nextInt();
-        maxInstrs[InstrType.BEQ.ordinal()] = sc.nextInt();
-        maxInstrs[InstrType.JALR.ordinal()] = sc.nextInt();
-        maxInstrs[InstrType.RET.ordinal()] = sc.nextInt();
-        maxInstrs[InstrType.ADD.ordinal()] = sc.nextInt();
-        maxInstrs[InstrType.SUB.ordinal()] = sc.nextInt();
-        maxInstrs[InstrType.ADDI.ordinal()] = sc.nextInt();
-        maxInstrs[InstrType.NAND.ordinal()] = sc.nextInt();
-        maxInstrs[InstrType.MUL.ordinal()] = sc.nextInt();
-        
-        System.out.println("Enter the number of ROB Entries Available");
-        int ROBsize = sc.nextInt();
-        
-        int[] numCycles = new int[11];
-        System.out.println("Enter the number of cycles needed by each of the following (seperated by spaces)");
-        System.out.println("JMP, BEQ, JALR, RET, ADD, SUB, ADDI, NAND, MUL");
-        numCycles[InstrType.JMP.ordinal()] = sc.nextInt();
-        numCycles[InstrType.BEQ.ordinal()] = sc.nextInt();
-        numCycles[InstrType.JALR.ordinal()] = sc.nextInt();
-        numCycles[InstrType.RET.ordinal()] = sc.nextInt();
-        numCycles[InstrType.ADD.ordinal()] = sc.nextInt();
-        numCycles[InstrType.SUB.ordinal()] = sc.nextInt();
-        numCycles[InstrType.ADDI.ordinal()] = sc.nextInt();
-        numCycles[InstrType.NAND.ordinal()] = sc.nextInt();
-        numCycles[InstrType.MUL.ordinal()] = sc.nextInt();
-        
-        System.out.println("Your Program should be in address location 32768");
-        Processor p = new Processor(M, pipelineWidth, insturctionBuffer, ROBsize, maxInstrs, numCycles);
-        
-        M.write(32768, "ADD R7 R7 R0");
-        M.write(32770, "ADD R7 R7 R0");
-        for(int i = 0; i < 7; i++)
-        	p.simulate();
+            Scanner sc = new Scanner(System.in);
+            System.out.println("Enter the number of cache Levels");
+            int numCacheLevels = sc.nextInt();
+            
+            int[] S = new int[Math.min(3, numCacheLevels)];
+            int[] m = new int[Math.min(3, numCacheLevels)];
+            CacheWriteHitPolicy[] cacheWriteHitPolicy = new CacheWriteHitPolicy[Math.min(3, numCacheLevels)];    
+            System.out.println("Enter the Line Size L of the cache(s)");
+            int L = sc.nextInt();
+            for(int i = 1; i <= Math.min(3, numCacheLevels); i++) {
+            	System.out.println("Enter S, M and the writing policy (0 for WriteBack, 1 for WriteThrough) of cache #" + i + " (seperated by spaces)");
+            	S[i-1] = sc.nextInt();
+            	m[i-1] = sc.nextInt();
+            	int t = sc.nextInt();
+            	if(t == 0) cacheWriteHitPolicy[i-1] = CacheWriteHitPolicy.WriteBack;
+            	else cacheWriteHitPolicy[i-1] = CacheWriteHitPolicy.WriteThrough;
+            }
+            
+            int[] cycles = new int[Math.min(3, numCacheLevels)];
+            for(int i = 1; i <= Math.min(3, numCacheLevels); i++) {
+            	System.out.println("Enter the access time (in cycles) of Cache #" + i);
+            	cycles[i-1] = sc.nextInt();   	
+            }
+            System.out.println("Enter the main memory access time");
+            int memoryCycles = sc.nextInt();
+            
+            MemoryHierarchy M = new MemoryHierarchy(numCacheLevels, L, S, m, cycles, memoryCycles, cacheWriteHitPolicy);
+            
+            System.out.println("Enter the pipeline width");
+            int pipelineWidth = sc.nextInt();
+            
+            System.out.println("Enter the size of the instruction buffer (queue)");
+            int insturctionBuffer = sc.nextInt();
+            
+            int[] maxInstrs = new int[11];
+            System.out.println("Enter the number of reservation stations for each of the following instructions (seperated by spaces)");
+            System.out.println("LW, SW, JMP, BEQ, JALR, RET, ADD, SUB, ADDI, NAND, MUL");
+            maxInstrs[InstrType.LW.ordinal()] = sc.nextInt();
+            maxInstrs[InstrType.SW.ordinal()] = sc.nextInt();
+            maxInstrs[InstrType.JMP.ordinal()] = sc.nextInt();
+            maxInstrs[InstrType.BEQ.ordinal()] = sc.nextInt();
+            maxInstrs[InstrType.JALR.ordinal()] = sc.nextInt();
+            maxInstrs[InstrType.RET.ordinal()] = sc.nextInt();
+            maxInstrs[InstrType.ADD.ordinal()] = sc.nextInt();
+            maxInstrs[InstrType.SUB.ordinal()] = sc.nextInt();
+            maxInstrs[InstrType.ADDI.ordinal()] = sc.nextInt();
+            maxInstrs[InstrType.NAND.ordinal()] = sc.nextInt();
+            maxInstrs[InstrType.MUL.ordinal()] = sc.nextInt();
+            
+            System.out.println("Enter the number of ROB Entries Available");
+            int ROBsize = sc.nextInt();
+            
+            int[] numCycles = new int[11];
+            System.out.println("Enter the number of cycles needed by each of the following (seperated by spaces)");
+            System.out.println("JMP, BEQ, JALR, RET, ADD, SUB, ADDI, NAND, MUL");
+            numCycles[InstrType.JMP.ordinal()] = sc.nextInt();
+            numCycles[InstrType.BEQ.ordinal()] = sc.nextInt();
+            numCycles[InstrType.JALR.ordinal()] = sc.nextInt();
+            numCycles[InstrType.RET.ordinal()] = sc.nextInt();
+            numCycles[InstrType.ADD.ordinal()] = sc.nextInt();
+            numCycles[InstrType.SUB.ordinal()] = sc.nextInt();
+            numCycles[InstrType.ADDI.ordinal()] = sc.nextInt();
+            numCycles[InstrType.NAND.ordinal()] = sc.nextInt();
+            numCycles[InstrType.MUL.ordinal()] = sc.nextInt();
+            
+            System.out.println("Your Program should be in address location 32768");
+            Processor p = new Processor(M, pipelineWidth, insturctionBuffer, ROBsize, maxInstrs, numCycles);
+            
+            M.write(32768, "ADD R7 R7 R0");
+            M.write(32770, "ADDI R7 R7 3");
+            M.write(32772, "JMP R0 0");
+            M.write (32774, "SUB R7 R7 R7");
+            for(int i = 0; i < 20; i++)
+            	p.simulate();
     }
 }

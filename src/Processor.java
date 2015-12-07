@@ -476,7 +476,7 @@ public class Processor {
             M.write(32770, "ADDI R7 R7 3");
             M.write(32772, "JMP R0 0");
             M.write (32774, "SUB R7 R7 R7");
-            for(int i = 0; i < 20; i++)
+            for(int i = 0; i < 15; i++)
             	p.simulate();
     }
 }

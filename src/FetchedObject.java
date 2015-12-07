@@ -15,6 +15,14 @@ public class FetchedObject {
 	public int getCycles() {
 		return this.cycles;
 	}
+	
+	/**
+	 * 
+	 * @return data
+	 */
+	public String getData() {
+		return this.data;
+	}
 
 	/**
 	 * 

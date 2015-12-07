@@ -1,14 +1,2 @@
-/Battee5aMemory.class
-/Cache.class
-/CacheEntry.class
-/CacheWriteHitPolicy.class
-/CacheWriteMissPolicy.class
-/MainMemory.class
-/Memory.class
-/MemoryHierarchy.class
-/Processor.class
-/ProgramParser.class
-/ROBEntry.class
-/ReservationEntry.class
-/InstrType.class
-/Instruction.class
+/FetchedObject.class
+/InvalidNumberOfBanksException.class

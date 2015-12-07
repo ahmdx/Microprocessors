@@ -9,12 +9,12 @@ public class Processor {
     int[] regs;
     int[] regStatus;
 
-    int insturctionBuffer;
+    int instructionBuffer;
     int instructionsInBuffer; // Fetched Instructions
 
     int cyclesSimulated;
 
-    Battee5aMemory B; // To Be done
+    MemoryHierarchy M; // To Be done
 
     ArrayList<ROBEntry> ROB;
 
@@ -22,8 +22,12 @@ public class Processor {
     int tail;
     int ROBsize;
     int instructionsInROB;
+    
+    int maxIssuedPerCycle;
 
     ArrayList<String[]> fetched;
+    int cyclesLeftToFetch;
+    String[] instructionToBeFetched;
 
     ReservationEntry e; // Issued Instruction
 
@@ -34,9 +38,15 @@ public class Processor {
     int[] numInstrs = new int[11];
     int[] maxInstrs = new int[11];
 
-    public Processor(int ROBsize) {
-        PC = 0;
+    public Processor(MemoryHierarchy M, int maxIssuedPerCycle, int instructionBuffer, int ROBsize, int[] maxInstrs, int[] numCycles) {
+        PC = 32768;
 
+        this.M = M;
+        this.maxIssuedPerCycle = maxIssuedPerCycle;
+        
+        this.maxInstrs = maxInstrs;
+        this.numCycles = numCycles;
+        
         regs = new int[8];
         regStatus = new int[8];
 
@@ -57,8 +67,7 @@ public class Processor {
         head = 1;
         tail = 1;
 
-        B = new Battee5aMemory();
-        insturctionBuffer = 4;
+        this.instructionBuffer = instructionBuffer;
         instructionsInBuffer = 0;
     }
 
@@ -107,23 +116,30 @@ public class Processor {
 
         //Issue Stage
         e = null; // Will Contain Issued Instruction
-        if (fetched.size() > 0 && Issue(fetched.get(0))) {
+        int issuedInstructions = 0;
+        while (issuedInstructions < maxIssuedPerCycle && fetched.size() > 0 && Issue(fetched.get(0))) {
             fetched.remove(0);
             instructionsInBuffer--;
             instructionsInROB++;
-        }
-
-        if (e != null) { // If there is an instruction to be issued
-            int value = computeResult(e.type, e.vj, e.vk, e.addr);
-            tail++;
-            if (tail == ROBsize + 1) {
-                tail = 1;
+            issuedInstructions++;
+            if (e != null) { // If there is an instruction to be issued
+                tail++;
+                if (tail == ROBsize + 1) {
+                    tail = 1;
+                }
+                rs.add(e);
             }
-            rs.add(e);
         }
 
         // Fetch Stage
-        fetchAll();
+        if(cyclesLeftToFetch == 0) fetch();
+        
+        if(cyclesLeftToFetch > 0) {
+        	cyclesLeftToFetch--;
+        	if(cyclesLeftToFetch == 0) {
+        		fetched.add(instructionToBeFetched);
+        	}
+        }
 
         cyclesSimulated++;
         System.out.println("Cycle: " + cyclesSimulated);
@@ -135,20 +151,32 @@ public class Processor {
     public int computeResult(InstrType type, int vj, int vk, int a) {
 
         if (type == InstrType.ADDI) {
-            return (int) (regs[vj] + a);
+            return (vj + a);
         }
+        else if (type == InstrType.ADD) {
+            return (vj + vk);
+        }
+        else if (type == InstrType.SUB) {
+            return (vj - vk);
+        }
+        else if (type == InstrType.MUL) {
+            return (vj * vk);
+        }
+        else if (type == InstrType.NAND) {
+            return ~(vj & vk);
+        }
+        
         return 0;
     }
 
-    public void fetchAll() {
-        while (instructionsInBuffer < insturctionBuffer) {
-            if (PC / 2 == B.Instructions.size()) {
-                break;
-            }
-            fetched.add(ProgramParser.match(B.Instructions.get(PC / 2)));
-            instructionsInBuffer++;
-            PC += 2;
-        }
+    public void fetch() {
+    	FetchedObject fetchedObject = M.read(PC);
+    	String instr = fetchedObject.getData();
+    	System.out.println(fetchedObject.getCycles());
+    	if(instr == null) instr = "ADD R7 R7 R1";
+    	instructionToBeFetched = instr.split(" ");
+    	cyclesLeftToFetch = fetchedObject.getCycles();
+    	PC+= 2;
     }
 
     public boolean Issue(String[] strInstr) {
@@ -281,21 +309,77 @@ public class Processor {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InvalidNumberOfBanksException {
         Scanner sc = new Scanner(System.in);
-        Processor p = new Processor(4);
-        p.numCycles[InstrType.ADD.ordinal()] = 2;
-        p.numCycles[InstrType.ADDI.ordinal()] = 2;
-        p.maxInstrs[InstrType.ADD.ordinal()] = 1;
-        p.numInstrs[InstrType.ADDI.ordinal()] = 1;
-        p.maxInstrs[InstrType.ADDI.ordinal()] = 1;
-        p.B.Instructions.add("ADDI R3, R5, -40");
-        p.insturctionBuffer = 4;
-        p.simulate();
-        p.simulate();
-        p.simulate();
-        p.simulate();
-        p.simulate();
+        System.out.println("Enter the number of cache Levels");
+        int numCacheLevels = sc.nextInt();
+        
+        int[] S = new int[Math.min(3, numCacheLevels)];
+        int[] m = new int[Math.min(3, numCacheLevels)];
+        CacheWriteHitPolicy[] cacheWriteHitPolicy = new CacheWriteHitPolicy[Math.min(3, numCacheLevels)];    
+        System.out.println("Enter the Line Size L of the cache(s)");
+        int L = sc.nextInt();
+        for(int i = 1; i <= Math.min(3, numCacheLevels); i++) {
+        	System.out.println("Enter S, M and the writing policy (0 for WriteBack, 1 for WriteThrough) of cache #" + i + " (seperated by spaces)");
+        	S[i-1] = sc.nextInt();
+        	m[i-1] = sc.nextInt();
+        	int t = sc.nextInt();
+        	if(t == 0) cacheWriteHitPolicy[i-1] = CacheWriteHitPolicy.WriteBack;
+        	else cacheWriteHitPolicy[i-1] = CacheWriteHitPolicy.WriteThrough;
+        }
+        
+        int[] cycles = new int[Math.min(3, numCacheLevels)];
+        for(int i = 1; i <= Math.min(3, numCacheLevels); i++) {
+        	System.out.println("Enter the access time (in cycles) of Cache #" + i);
+        	cycles[i-1] = sc.nextInt();   	
+        }
+        System.out.println("Enter the main memory access time");
+        int memoryCycles = sc.nextInt();
+        
+        MemoryHierarchy M = new MemoryHierarchy(numCacheLevels, L, S, m, cycles, memoryCycles, cacheWriteHitPolicy);
+        
+        System.out.println("Enter the pipeline width");
+        int pipelineWidth = sc.nextInt();
+        
+        System.out.println("Enter the size of the instruction buffer (queue)");
+        int insturctionBuffer = sc.nextInt();
+        
+        int[] maxInstrs = new int[11];
+        System.out.println("Enter the number of reservation stations for each of the following instructions (seperated by spaces)");
+        System.out.println("LW, SW, JMP, BEQ, JALR, RET, ADD, SUB, ADDI, NAND, MUL");
+        maxInstrs[InstrType.LW.ordinal()] = sc.nextInt();
+        maxInstrs[InstrType.SW.ordinal()] = sc.nextInt();
+        maxInstrs[InstrType.JMP.ordinal()] = sc.nextInt();
+        maxInstrs[InstrType.BEQ.ordinal()] = sc.nextInt();
+        maxInstrs[InstrType.JALR.ordinal()] = sc.nextInt();
+        maxInstrs[InstrType.RET.ordinal()] = sc.nextInt();
+        maxInstrs[InstrType.ADD.ordinal()] = sc.nextInt();
+        maxInstrs[InstrType.SUB.ordinal()] = sc.nextInt();
+        maxInstrs[InstrType.ADDI.ordinal()] = sc.nextInt();
+        maxInstrs[InstrType.NAND.ordinal()] = sc.nextInt();
+        maxInstrs[InstrType.MUL.ordinal()] = sc.nextInt();
+        
+        System.out.println("Enter the number of ROB Entries Available");
+        int ROBsize = sc.nextInt();
+        
+        int[] numCycles = new int[11];
+        System.out.println("Enter the number of cycles needed by each of the following (seperated by spaces)");
+        System.out.println("JMP, BEQ, JALR, RET, ADD, SUB, ADDI, NAND, MUL");
+        numCycles[InstrType.JMP.ordinal()] = sc.nextInt();
+        numCycles[InstrType.BEQ.ordinal()] = sc.nextInt();
+        numCycles[InstrType.JALR.ordinal()] = sc.nextInt();
+        numCycles[InstrType.RET.ordinal()] = sc.nextInt();
+        numCycles[InstrType.ADD.ordinal()] = sc.nextInt();
+        numCycles[InstrType.SUB.ordinal()] = sc.nextInt();
+        numCycles[InstrType.ADDI.ordinal()] = sc.nextInt();
+        numCycles[InstrType.NAND.ordinal()] = sc.nextInt();
+        numCycles[InstrType.MUL.ordinal()] = sc.nextInt();
+        
+        System.out.println("Your Program should be in address location 32768");
+        Processor p = new Processor(M, pipelineWidth, insturctionBuffer, ROBsize, maxInstrs, numCycles);
+        
+//        M.write(32768, "ADD R7 R7 R0");
+        for(int i = 0; i < 25; i++)
         p.simulate();
     }
 }

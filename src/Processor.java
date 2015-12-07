@@ -35,9 +35,9 @@ public class Processor {
     // Reservation Stations
     ArrayList<ReservationEntry> rs;
 
-    int[] numCycles = new int[11];
+    int[] numCycles;
     int[] numInstrs = new int[11];
-    int[] maxInstrs = new int[11];
+    int[] maxInstrs;
 
     public Processor(MemoryHierarchy M, int maxIssuedPerCycle, int instructionBuffer, int ROBsize, int[] maxInstrs, int[] numCycles) {
         PC = 32768;
@@ -100,6 +100,9 @@ public class Processor {
         		rs.clear();
         		fetched.clear();
         		fetchedAddress.clear();
+        		instructionsInROB = 0;
+        		head = 1;
+        		tail = 1;
         		return;
         	}
 
@@ -219,7 +222,6 @@ public class Processor {
     public void fetch() {
     	FetchedObject fetchedObject = M.read(PC);
     	String instr = fetchedObject.getData();
-    	System.out.println(fetchedObject.getCycles());
     	if(instr == null) instr = "ADD R7 R7 R0";
     	instructionToBeFetched = instr.split(" ");
     	cyclesLeftToFetch = fetchedObject.getCycles();
@@ -234,7 +236,7 @@ public class Processor {
 
         Instruction instr = new Instruction(strInstr);
         int idx = instr.getInstrType().ordinal();
-        if (numInstrs[idx] <= maxInstrs[idx]) {
+        if (numInstrs[idx] < maxInstrs[idx]) {
 
             int rd = instr.getRegA();
             int rs = instr.getRegB();
@@ -249,8 +251,8 @@ public class Processor {
             if (rs != 0) {
                 if (regStatus[rs] != -1) { // If not busy
                     int h = regStatus[rs];
-                    if (ROB.get(h).ready) {
-                        vj = ROB.get(h).value;
+                    if (ROB.get(h-1).ready) {
+                        vj = ROB.get(h-1).value;
                     } else {
                         qj = h;
                     }
@@ -262,8 +264,8 @@ public class Processor {
             if (rt != 0) {
                 if (regStatus[rt] != -1) { // If not busy
                     int h = regStatus[rt];
-                    if (ROB.get(h).ready) {
-                        vk = ROB.get(h).value;
+                    if (ROB.get(h-1).ready) {
+                        vk = ROB.get(h-1).value;
                     } else {
                         qj = h;
                     }
@@ -273,7 +275,8 @@ public class Processor {
             }
 
             boolean busy = true;
-            int dest = head;
+            int dest = tail;
+            numInstrs[idx]++;
 
             int cycles = numCycles[instr.getInstrType().ordinal()];
             e = new ReservationEntry(busy, instr.getInstrType(), vj, vk, qj, qk, dest, addr, cycles);
@@ -320,7 +323,7 @@ public class Processor {
 	        	}
 	        	else if (e.type == InstrType.BEQ) {
 	        		if (e.vj == e.vk) ROB.get(e.dest - 1).value2 = 1;
-	        		else ROB.get(e.dest - 1).value2 = 1;
+	        		else ROB.get(e.dest - 1).value2 = 0;
 	        		ROB.get(e.dest - 1).value = computeResult(e.type, e.vj, e.vk, e.addr, e.pc);
 	        	}
 	        	else if((e.type == InstrType.LW || e.type == InstrType.SW) && !e.step1LoadStore) {
@@ -359,7 +362,7 @@ public class Processor {
             System.out.println();
         }
         System.out.println("        Reservation Stations       ");
-        System.out.println("Op   Vj Vk Qj Qk Dest A   CyclesLeft");
+        System.out.println("Op   Vj Vk Qj Qk Dest A   CyclesLeft PC");
         for (int i = 0; i < rs.size(); i++) {
             System.out.format("%-5s", rs.get(i).type);
             if (rs.get(i).vj != -1) {
@@ -384,7 +387,8 @@ public class Processor {
             }
             System.out.format("%-5d", rs.get(i).dest);
             System.out.format("%-4d", rs.get(i).addr);
-            System.out.print(rs.get(i).cyclesLeft);
+            System.out.format("%-11d", rs.get(i).cyclesLeft);
+            System.out.print(rs.get(i).pc);
             System.out.println();
         }
         System.out.println("          Registers status            ");
@@ -468,7 +472,8 @@ public class Processor {
         Processor p = new Processor(M, pipelineWidth, insturctionBuffer, ROBsize, maxInstrs, numCycles);
         
         M.write(32768, "ADD R7 R7 R0");
-        for(int i = 0; i < 5; i++)
+        M.write(32770, "ADD R7 R7 R0");
+        for(int i = 0; i < 7; i++)
         	p.simulate();
     }
 }

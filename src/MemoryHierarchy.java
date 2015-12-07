@@ -30,8 +30,8 @@ public class MemoryHierarchy {
 
 	private int accessCycles;
 
-	public MemoryHierarchy(int numberOfCaches, int L, int S[], int m[], int cycles[], int memoryCycles)
-			throws InvalidNumberOfBanksException {
+	public MemoryHierarchy(int numberOfCaches, int L, int S[], int m[], int cycles[], int memoryCycles,
+			CacheWriteHitPolicy[] policies) throws InvalidNumberOfBanksException {
 
 		this.numberOfCaches = numberOfCaches;
 		this.L = L;
@@ -44,14 +44,14 @@ public class MemoryHierarchy {
 		// For the first level, Create separate data and instruction caches.
 		// Note that level 1 is a must.
 
-		Cache data = new Cache(S[0], L, m[0], cycles[0]);
-		Cache instructions = new Cache(S[0], L, m[0], cycles[0]);
+		Cache data = new Cache(S[0], L, m[0], cycles[0], policies[0]);
+		Cache instructions = new Cache(S[0], L, m[0], cycles[0], policies[0]);
 		caches.add(data);
 		caches.add(instructions);
 
 		// For the rest of the levels, add just one cache.
 		for (int i = 1; i < Math.min(numberOfCaches, 3); i++) {
-			Cache cache = new Cache(S[i], L, m[i], cycles[i]);
+			Cache cache = new Cache(S[i], L, m[i], cycles[i], policies[i]);
 			caches.add(cache);
 		}
 	}
@@ -60,11 +60,14 @@ public class MemoryHierarchy {
 		return address < (64 * 1024) / 2;
 	}
 
-	//
-	// Incomplete implementation
-	//
+	/**
+	 * 
+	 * @param address
+	 *            The address (byte) to be read; bytes n & n + 1, where n is
+	 *            even, are the same
+	 * @return Fetched Object containing the data and the cycles taken to read
+	 */
 	public FetchedObject read(int address) {
-		// int this.accessCycles = 0;
 		this.accessCycles = 0;
 		address = address / 2 * 2;
 
@@ -85,7 +88,7 @@ public class MemoryHierarchy {
 		this.accessCycles += this.cycles[0];
 		if (res != null) {
 			System.out.println("READ-C: " + this.accessCycles);
-//			return res;
+			// return res;
 			return new FetchedObject(res, this.accessCycles);
 		}
 
@@ -123,9 +126,9 @@ public class MemoryHierarchy {
 		String[] oldLine = null;
 		for (int i = missLevel - 1; i > 0; i--) {
 			oldLine = this.caches.get(i + 1).writeMiss(address, lineContent);
-//			if (oldLine != null) {
-				writeBack(i + 1, address, oldLine, false);
-//			}
+			// if (oldLine != null) {
+			writeBack(i + 1, address, oldLine, false);
+			// }
 			this.accessCycles += this.cycles[i];
 		}
 		if (data) {
@@ -133,16 +136,25 @@ public class MemoryHierarchy {
 		} else {
 			oldLine = this.caches.get(1).writeMiss(address, lineContent);
 		}
-//		if (oldLine != null) {
-			writeBack(1, address, oldLine, false);
-//		}
+		// if (oldLine != null) {
+		writeBack(1, address, oldLine, false);
+		// }
 		this.accessCycles += this.cycles[0];
 
 		System.out.println("READ-C: " + this.accessCycles);
-//		return lineContent[getByteOffset(address)];
+		// return lineContent[getByteOffset(address)];
 		return new FetchedObject(lineContent[getByteOffset(address)], this.accessCycles);
 	}
 
+	/**
+	 * 
+	 * @param address
+	 *            The address (byte) to write to; bytes n & n + 1, where n is
+	 *            even, are the same
+	 * @param content
+	 *            The data to be written
+	 * @return The number of cycles to write
+	 */
 	public int write(int address, String content) {
 		this.accessCycles = 0;
 		address = address / 2 * 2;
@@ -231,6 +243,8 @@ public class MemoryHierarchy {
 	}
 
 	/**
+	 * Called when there is a write hit at some cache level. Handles all data
+	 * propagation according the cache's write hit policy
 	 * 
 	 * @param level
 	 *            Current level the cache hit at
@@ -238,6 +252,9 @@ public class MemoryHierarchy {
 	 *            Address of content to write at
 	 * @param lineContent
 	 *            The line content to write
+	 * @param oldLine
+	 *            The line returned from a write back cache
+	 * 
 	 */
 	public void writeHit(int level, int address, String[] lineContent, String[] oldLine) {
 		System.out.println("HITL: " + level);
@@ -248,7 +265,7 @@ public class MemoryHierarchy {
 				this.caches.get(i).writeLine(address, lineContent);
 				this.accessCycles += this.cycles[i - 1];
 			} else {
-//				 this.accessCycles += this.cycles[i - 1];
+				// this.accessCycles += this.cycles[i - 1];
 				writeBack(i - 1, address, this.caches.get(i).writeLine(address, oldLine)[1], false);
 				return;
 			}
@@ -257,17 +274,20 @@ public class MemoryHierarchy {
 		this.accessCycles += this.memoryCycles;
 	}
 
-	// public void writeHitRec(int level, int address, String[] lineContent) {
-	// this.accessCycles += this.cycles[level - 1];
-	// if (level == this.caches.size() - 1) {
-	// this.memory.writeLine(address, lineContent);
-	// this.accessCycles += this.memoryCycles;
-	// return;
-	// }
-	// this.caches.get(level + 1).writeLine(address, lineContent);
-	// writeHitRec(level + 1, address, lineContent);
-	// }
-
+	/**
+	 * Called when there is a write hit at some cache level. Handles all data
+	 * propagation according the cache's write hit policy
+	 * 
+	 * @param level
+	 *            Current level the cache returned a data to be propagated
+	 * @param address
+	 *            Address of content to write at
+	 * @param lineContent
+	 *            The line content to write
+	 * @param count
+	 *            Whether to count the cycles taken at the cache level or not
+	 * 
+	 */
 	public void writeBack(int level, int address, String[] content, boolean count) {
 		if (content == null) {
 			return;
@@ -313,10 +333,12 @@ public class MemoryHierarchy {
 	}
 
 	public static void main(String[] args) throws InvalidNumberOfBanksException {
+		// CacheWriteHitPolicy[] policies = ;
 		MemoryHierarchy h = new MemoryHierarchy(2, 4, new int[] { 2048, 4096, 8192 }, new int[] { 1, 1, 1 },
-				new int[] { 1, 4, 6 }, 10);
-		
-//		h.memory.writeLine(0, new String[] {"A", "", "B", ""});
+				new int[] { 1, 4, 6 }, 10, new CacheWriteHitPolicy[] { CacheWriteHitPolicy.WriteBack,
+						CacheWriteHitPolicy.WriteBack, CacheWriteHitPolicy.WriteThrough });
+
+		// h.memory.writeLine(0, new String[] {"A", "", "B", ""});
 
 		System.out.println(h.write(0, "A") + " cycles");
 		System.out.println(h.read(0));

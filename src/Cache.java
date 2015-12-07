@@ -38,9 +38,7 @@ public class Cache {
 		this.L = L;
 		this.m = m;
 		this.cycles = cycles;
-//		this.writeHitPolicy = CacheWriteHitPolicy.WriteThrough;
-		 this.writeHitPolicy = CacheWriteHitPolicy.WriteBack;
-		// this.writeMissPolicy = CacheWriteMissPolicy.WriteAllocate;
+		this.writeHitPolicy = CacheWriteHitPolicy.WriteThrough;
 
 		this.C = S / L;
 
@@ -57,15 +55,19 @@ public class Cache {
 		this.i = (int) (Math.log(this.lines) / Math.log(2));
 	}
 
-	public Cache(int S, int L, int m, int cycles, CacheWriteHitPolicy hitPolicy, CacheWriteMissPolicy missPolicy) {
+	public Cache(int S, int L, int m, int cycles, CacheWriteHitPolicy hitPolicy) throws InvalidNumberOfBanksException {
 		this.S = S;
 		this.L = L;
 		this.m = m;
 		this.cycles = cycles;
 		this.writeHitPolicy = hitPolicy;
-		// this.writeMissPolicy = missPolicy;
 
-		this.C = (S * 1024) / L;
+		this.C = S / L;
+
+		if (C < m) {
+			throw new InvalidNumberOfBanksException(
+					"Number of banks cannot be greater than the number of cache entries");
+		}
 
 		this.lines = C / m;
 

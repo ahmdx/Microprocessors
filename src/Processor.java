@@ -26,6 +26,7 @@ public class Processor {
     int maxIssuedPerCycle;
 
     ArrayList<String[]> fetched;
+    ArrayList<Integer> fetchedAddress;
     int cyclesLeftToFetch;
     String[] instructionToBeFetched;
 
@@ -54,8 +55,11 @@ public class Processor {
             regStatus[i] = -1;
         }
         regs[0] = 0;
+        numCycles[InstrType.LW.ordinal()] = 1;
+        numCycles[InstrType.SW.ordinal()] = 1;
 
         fetched = new ArrayList<String[]>();
+        fetchedAddress = new ArrayList<Integer>();
 
         rs = new ArrayList<ReservationEntry>();
 
@@ -73,12 +77,36 @@ public class Processor {
 
     public void simulate() {
         // Commit Stage
+    	
         if (ROB.get(head - 1) != null && ROB.get(head - 1).ready) {
-            regs[ROB.get(head - 1).dest] = ROB.get(head - 1).value;
+        	InstrType instruction = ROB.get(head - 1).instruction;
+        	if(instruction == InstrType.ADD || instruction == InstrType.ADDI || instruction == InstrType.SUB || instruction == InstrType.MUL || instruction == InstrType.NAND) {
+        		regs[ROB.get(head - 1).dest] = ROB.get(head - 1).value;
+        	}
+        	else if(instruction == InstrType.JMP || instruction == InstrType.RET || (instruction == InstrType.BEQ && ROB.get(head - 1).value2 == 1) || instruction == InstrType.JALR) {
+        		PC = ROB.get(head - 1).value;
+        		if(instruction == InstrType.JALR) {
+        			ROB.get(head - 1).dest = ROB.get(head - 1).value2;
+        		}
+        		
+        		for(int i = 0; i < 8; i++) {
+        			regStatus[i] = -1;
+        		}
+        		
+        		for(int i = 0; i < ROBsize; i++) {
+        			ROB.set(i, null);
+        		}
+        		
+        		rs.clear();
+        		fetched.clear();
+        		fetchedAddress.clear();
+        		return;
+        	}
 
             if (regStatus[ROB.get(head - 1).dest] == head) {
                 regStatus[ROB.get(head - 1).dest] = -1;
             }
+            
             instructionsInROB--;
             ROB.set(head - 1, null);
             head++;
@@ -127,6 +155,7 @@ public class Processor {
                 if (tail == ROBsize + 1) {
                     tail = 1;
                 }
+                e.pc = fetchedAddress.remove(0);
                 rs.add(e);
             }
         }
@@ -148,22 +177,40 @@ public class Processor {
         System.out.println();
     }
 
-    public int computeResult(InstrType type, int vj, int vk, int a) {
+    public int computeResult(InstrType type, int vj, int vk, int a, int pc) {
 
         if (type == InstrType.ADDI) {
-            return (vj + a);
+            return vj + a;
         }
         else if (type == InstrType.ADD) {
-            return (vj + vk);
+            return vj + vk;
         }
         else if (type == InstrType.SUB) {
-            return (vj - vk);
+            return vj - vk;
         }
         else if (type == InstrType.MUL) {
-            return (vj * vk);
+            return vj * vk;
         }
         else if (type == InstrType.NAND) {
             return ~(vj & vk);
+        }
+        else if (type == InstrType.LW) {
+        	return vj + a;
+        }
+        else if (type == InstrType.SW) {
+        	return vj + a;
+        }
+        else if (type == InstrType.JMP) {
+        	return pc+1 + vj + a;
+        }
+        else if (type == InstrType.BEQ) {
+        	return pc+1 + a;
+        }
+        else if (type == InstrType.JALR) {
+        	return vk;
+        }
+        else if (type == InstrType.RET) {
+        	return vj;
         }
         
         return 0;
@@ -173,9 +220,10 @@ public class Processor {
     	FetchedObject fetchedObject = M.read(PC);
     	String instr = fetchedObject.getData();
     	System.out.println(fetchedObject.getCycles());
-    	if(instr == null) instr = "ADD R7 R7 R1";
+    	if(instr == null) instr = "ADD R7 R7 R0";
     	instructionToBeFetched = instr.split(" ");
     	cyclesLeftToFetch = fetchedObject.getCycles();
+    	fetchedAddress.add(PC);
     	PC+= 2;
     }
 
@@ -253,7 +301,48 @@ public class Processor {
     }
 
     public void execute(ReservationEntry e) {
-        e.cyclesLeft--;
+    	if(e.type == InstrType.LW && e.step1LoadStore) {
+    		boolean allStoresHaveDifferentAddress = true;
+    		for(int i = 0; i < ROBsize; i++) {
+    			if(ROB.get(i) != null && (e.dest - 1 != i) && ROB.get(i).instruction.equals(InstrType.SW) && ROB.get(e.dest - 1).value == ROB.get(i).value) {
+    				allStoresHaveDifferentAddress = false;
+    				break;
+    			}
+    		}
+    		if(allStoresHaveDifferentAddress) e.cyclesLeft--;
+    	}
+    	else {
+    		e.cyclesLeft--;
+	        if(e.cyclesLeft == 0) {
+	        	if (e.type == InstrType.JALR) {
+	        		ROB.get(e.dest - 1).value2 = e.pc+1;
+	        		ROB.get(e.dest - 1).value = computeResult(e.type, e.vj, e.vk, e.addr, e.pc);
+	        	}
+	        	else if (e.type == InstrType.BEQ) {
+	        		if (e.vj == e.vk) ROB.get(e.dest - 1).value2 = 1;
+	        		else ROB.get(e.dest - 1).value2 = 1;
+	        		ROB.get(e.dest - 1).value = computeResult(e.type, e.vj, e.vk, e.addr, e.pc);
+	        	}
+	        	else if((e.type == InstrType.LW || e.type == InstrType.SW) && !e.step1LoadStore) {
+	        		int address = computeResult(e.type, e.vj, e.vk, e.addr, e.pc);
+	        		ROB.get(e.dest - 1).value = address;
+	        		e.step1LoadStore = true;
+	        		
+	        		if(e.type == InstrType.LW) {
+	        			FetchedObject fetchedObject = M.read(address);
+	        			e.cyclesLeft = fetchedObject.getCycles();
+	        			ROB.get(e.dest - 1).value = Integer.parseInt(fetchedObject.getData());
+	        		}
+	        		else { // SW
+	        			int cycles = M.write(address, ""+e.vj);
+	        			e.cyclesLeft = cycles;
+	        		}
+	        	}
+	        	else {
+	        		ROB.get(e.dest - 1).value = computeResult(e.type, e.vj, e.vk, e.addr, e.pc);
+	        	}
+	        }
+    	}
     }
 
     public void printAll() {
@@ -378,8 +467,8 @@ public class Processor {
         System.out.println("Your Program should be in address location 32768");
         Processor p = new Processor(M, pipelineWidth, insturctionBuffer, ROBsize, maxInstrs, numCycles);
         
-//        M.write(32768, "ADD R7 R7 R0");
-        for(int i = 0; i < 25; i++)
-        p.simulate();
+        M.write(32768, "ADD R7 R7 R0");
+        for(int i = 0; i < 5; i++)
+        	p.simulate();
     }
 }

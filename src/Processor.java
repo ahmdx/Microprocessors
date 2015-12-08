@@ -78,12 +78,16 @@ public class Processor {
     public void simulate() {
         // Commit Stage
     	
+    	int stallCycles = 0;
         if (ROB.get(head - 1) != null && ROB.get(head - 1).ready) {
         	InstrType instruction = ROB.get(head - 1).instruction;
-        	if(instruction == InstrType.ADD || instruction == InstrType.ADDI || instruction == InstrType.SUB || instruction == InstrType.MUL || instruction == InstrType.NAND) {
+        	if(instruction == InstrType.LW || instruction == InstrType.ADD || instruction == InstrType.ADDI || instruction == InstrType.SUB || instruction == InstrType.MUL || instruction == InstrType.NAND) {
         		regs[ROB.get(head - 1).dest] = ROB.get(head - 1).value;
         	}
-        	else if(instruction == InstrType.JMP || instruction == InstrType.RET || (instruction == InstrType.BEQ && ROB.get(head - 1).value2 == 1) || instruction == InstrType.JALR) {
+        	else if(instruction == InstrType.SW) {
+        		stallCycles = M.write(ROB.get(e.dest - 1).value, ""+e.vj) - 1;
+        	}
+        	else if(instruction == InstrType.JMP || instruction == InstrType.RET || instruction == InstrType.JALR || (instruction == InstrType.BEQ && ROB.get(head - 1).value != ROB.get(head - 1).value2)) {
         		PC = ROB.get(head - 1).value;
         		if(instruction == InstrType.JALR) {
         			ROB.get(head - 1).dest = ROB.get(head - 1).value2;
@@ -171,11 +175,20 @@ public class Processor {
         	cyclesLeftToFetch--;
         	if(cyclesLeftToFetch == 0) {
         		fetched.add(instructionToBeFetched);
+        		if(instructionToBeFetched[0] == "BEQ") {
+        			int imm = Integer.parseInt(instructionToBeFetched[3]);
+        			if(imm < 0) PC = PC + imm;
+        		}
         	}
         }
 
         cyclesSimulated++;
-        System.out.println("Cycle: " + cyclesSimulated);
+        if(stallCycles == 0)
+        	System.out.println("Cycle: " + cyclesSimulated);
+        else {
+        	System.out.println("Cycles: " + cyclesSimulated + " " + (cyclesSimulated+stallCycles));
+        	cyclesSimulated += stallCycles;
+        }
         System.out.println();
         printAll();
         System.out.println();
@@ -208,7 +221,10 @@ public class Processor {
         	return pc+2 + vj + a;
         }
         else if (type == InstrType.BEQ) {
-        	return pc+2 + a;
+        	if (vj == vk)
+        		return pc+2 + a;
+        	else
+        		return pc+2;
         }
         else if (type == InstrType.JALR) {
         	return vk;
@@ -323,26 +339,21 @@ public class Processor {
 	        		ROB.get(e.dest - 1).value = computeResult(e.type, e.vj, e.vk, e.addr, e.pc);
 	        	}
 	        	else if (e.type == InstrType.BEQ) {
-	        		if (e.vj == e.vk) ROB.get(e.dest - 1).value2 = 1;
-	        		else ROB.get(e.dest - 1).value2 = 0;
+	        		if(e.addr < 0) ROB.get(e.dest - 1).value2 = e.pc + 2 + e.addr;
+	        		else ROB.get(e.dest - 1).value2 = e.pc + 2;
 	        		ROB.get(e.dest - 1).value = computeResult(e.type, e.vj, e.vk, e.addr, e.pc);
 	        	}
-	        	else if((e.type == InstrType.LW || e.type == InstrType.SW) && !e.step1LoadStore) {
-	        		int address = computeResult(e.type, e.vj, e.vk, e.addr, e.pc);
-	        		ROB.get(e.dest - 1).value = address;
+	        	else if(e.type == InstrType.LW) {
+	        		ROB.get(e.dest - 1).value = computeResult(e.type, e.vj, e.vk, e.addr, e.pc);
 	        		e.step1LoadStore = true;
 	        		
 	        		if(e.type == InstrType.LW) {
-	        			FetchedObject fetchedObject = M.read(address);
+	        			FetchedObject fetchedObject = M.read(ROB.get(e.dest - 1).value);
 	        			e.cyclesLeft = fetchedObject.getCycles();
 	        			ROB.get(e.dest - 1).value = Integer.parseInt(fetchedObject.getData());
 	        		}
-	        		else { // SW
-	        			int cycles = M.write(address, ""+e.vj);
-	        			e.cyclesLeft = cycles;
-	        		}
 	        	}
-	        	else {
+	        	else { // Everything else
 	        		ROB.get(e.dest - 1).value = computeResult(e.type, e.vj, e.vk, e.addr, e.pc);
 	        	}
 	        }
@@ -474,9 +485,10 @@ public class Processor {
             
             M.write(32768, "ADD R7 R7 R0");
             M.write(32770, "ADDI R7 R7 3");
-            M.write(32772, "JMP R0 0");
+            M.write(32772, "JMP R0 -4");
             M.write (32774, "SUB R7 R7 R7");
             for(int i = 0; i < 15; i++)
             	p.simulate();
+            System.out.println(p.regs[7]); // ADDI R7 R7 3 twice, prints 6
     }
 }

@@ -2,6 +2,9 @@ import java.util.Arrays;
 import java.util.regex.*;
 
 public class ProgramParser {
+	/**
+	 * Regular expressions to check the format of the instructions
+	 */
 	private String origin = "(\\.ORG)\\s+([0-9]|[1-9][0-9]{1,3}|[1-2][0-9]{4}|3[0-2][0-7][0-6][0-7])(?:\\s*\\#.*)?";
 	private String data = "(\\.DATA)\\s+(-([0-9]|[1-9][0-9]{1,3}|[1-2][0-9]{4}|3[0-2][0-7][0-6][0-8])|([0-9]|[1-9][0-9]{1,3}|[1-2][0-9]{4}|3[0-2][0-7][0-6][0-7])),\\s+([0-9]|[1-9][0-9]{1,3}|[1-2][0-9]{4}|3[0-2][0-7][0-6][0-7])(?:\\s*\\#.*)?";
 	private String jump = "(JMP)\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s*\\#.*)?";
@@ -13,6 +16,13 @@ public class ProgramParser {
 	private String arithmetic = "(ADD|SUB|NAND|MUL)\\s+(R[1-7]),\\s+(R[0-7]),\\s+(R[0-7])(?:\\s*\\#.*)?";
 	private String immediate = "(ADDI)\\s+(R[1-7]),\\s+(R[0-7]),\\s+(([0-9]|[1-5][0-9]|6[0-3])|(\\-[0-9]|\\-[1-5][0-9]|\\-6[0-4]))(?:\\s*\\#.*)?";
 
+	/**
+	 * 
+	 * @param string
+	 *            String to be matched against the regular expressions
+	 * @return Array of strings containing the instruction and its operands if
+	 *         it matched against one of the regular expressions, otherwise null
+	 */
 	public String[] match(String string) {
 		Pattern pattern = Pattern.compile("(\\.ORG|\\.DATA|JMP|LW|SW|BEQ|JALR|RET|ADDI|ADD|SUB|NAND|MUL).*");
 		Matcher matcher = pattern.matcher(string);
@@ -75,12 +85,18 @@ public class ProgramParser {
 		return null;
 	}
 
+	/**
+	 * 
+	 * @param string String to be matched
+	 * @param regex Regular expression to be matched against
+	 * @return
+	 */
 	public Matcher matcher(String string, String regex) {
 		Pattern pattern = Pattern.compile(regex);
 		Matcher matcher = pattern.matcher(string);
 		return matcher;
 	}
-	
+
 	public static void main(String[] args) {
 		ProgramParser pp = new ProgramParser();
 

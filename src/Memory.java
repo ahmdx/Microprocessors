@@ -90,10 +90,15 @@ public class Memory {
 		this.writes++;
 		int addr = (address / this.L) * this.L;
 		for (int i = 0; i < data.length; i++) {
-			write(addr + i, data[i], false);
+			if (i % 2 == 0) {
+				write(addr + i, data[i], false);
+			}
 		}
 		for (int i = data.length; i < this.L; i++) {
-			write(addr + i, null, false);
+			if (i % 2 == 0) {
+				write(addr + i, null, false);
+			}
+			
 		}
 		
 		return readLine(address);

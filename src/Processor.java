@@ -3,6 +3,7 @@ import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Processor {
+	static int PCAfterLastInstruction;
 
     int PC;
 
@@ -12,6 +13,10 @@ public class Processor {
     int instructionBuffer;
     int instructionsInBuffer; // Fetched Instructions
 
+    int totalInstructions;
+    int loadInstructions;
+    int beqInstructions;
+    int mispredictions;
     int cyclesSimulated;
 
     MemoryHierarchy M; // To Be done
@@ -75,7 +80,7 @@ public class Processor {
         instructionsInBuffer = 0;
     }
 
-    public void simulate() {
+    public boolean simulate() {
         // Commit Stage
     	
     	int stallCycles = 0;
@@ -83,12 +88,18 @@ public class Processor {
         	InstrType instruction = ROB.get(head - 1).instruction;
         	if(instruction == InstrType.LW || instruction == InstrType.ADD || instruction == InstrType.ADDI || instruction == InstrType.SUB || instruction == InstrType.MUL || instruction == InstrType.NAND) {
         		regs[ROB.get(head - 1).dest] = ROB.get(head - 1).value;
+        		loadInstructions++;
         	}
         	else if(instruction == InstrType.SW) {
         		stallCycles = M.write(ROB.get(e.dest - 1).value, ""+e.vj) - 1;
         	}
         	else if(instruction == InstrType.JMP || instruction == InstrType.RET || instruction == InstrType.JALR || (instruction == InstrType.BEQ && ROB.get(head - 1).value != ROB.get(head - 1).value2)) {
+        		if(instruction == InstrType.BEQ) {
+        			beqInstructions++;
+        			mispredictions++;
+        		}
         		PC = ROB.get(head - 1).value;
+        		
         		if(instruction == InstrType.JALR) {
         			ROB.get(head - 1).dest = ROB.get(head - 1).value2;
         		}
@@ -108,7 +119,13 @@ public class Processor {
         		instructionsInROB = 0;
         		head = 1;
         		tail = 1;
-        		return;
+        		totalInstructions++;
+        		cyclesSimulated++;
+        		if(PC >= PCAfterLastInstruction) return false;
+        		return true;
+        	}
+        	if(instruction == InstrType.BEQ) {
+        		beqInstructions++;
         	}
 
             if (regStatus[ROB.get(head - 1).dest] == head) {
@@ -121,6 +138,7 @@ public class Processor {
             if (head == ROBsize + 1) {
                 head = 1;
             }
+            totalInstructions++;
 
         }
 
@@ -183,15 +201,24 @@ public class Processor {
         }
 
         cyclesSimulated++;
-        if(stallCycles == 0)
-        	System.out.println("Cycle: " + cyclesSimulated);
+        if(stallCycles == 0);
+        	//System.out.println("Cycle: " + cyclesSimulated);
         else {
-        	System.out.println("Cycles: " + cyclesSimulated + " " + (cyclesSimulated+stallCycles));
+        	//System.out.println("Cycles: " + cyclesSimulated + " " + (cyclesSimulated+stallCycles));
         	cyclesSimulated += stallCycles;
         }
-        System.out.println();
+		boolean allAfterLastInstruction = true;
+		for(int i = 0; i < rs.size(); i++) {
+			if(rs.get(i).pc < PCAfterLastInstruction) {
+				allAfterLastInstruction = false;
+				break;
+			}
+		}
+		if(PC >= PCAfterLastInstruction && allAfterLastInstruction) return false;
+        return true;
+        /*System.out.println();
         printAll();
-        System.out.println();
+        System.out.println();*/
     }
 
     public int computeResult(InstrType type, int vj, int vk, int a, int pc) {
@@ -480,15 +507,64 @@ public class Processor {
             numCycles[InstrType.NAND.ordinal()] = sc.nextInt();
             numCycles[InstrType.MUL.ordinal()] = sc.nextInt();
             
-            System.out.println("Your Program should be in address location 32768");
             Processor p = new Processor(M, pipelineWidth, insturctionBuffer, ROBsize, maxInstrs, numCycles);
             
-            M.write(32768, "ADD R7 R7 R0");
-            M.write(32770, "ADDI R7 R7 3");
-            M.write(32772, "JMP R0 -4");
-            M.write (32774, "SUB R7 R7 R7");
-            for(int i = 0; i < 15; i++)
-            	p.simulate();
-            System.out.println(p.regs[7]); // ADDI R7 R7 3 twice, prints 6
+            //M.getMemory().write(32768, "ADD R7 R7 R0", false);
+            System.out.println("Enter the starting address of your program (Should be >= 32768)");
+            int startingPC = sc.nextInt();
+            System.out.println("Enter the program");
+            System.out.println("Finish by Entering a blank line");
+            sc.nextLine();
+            String s = sc.nextLine();
+            while(!s.equals("")) {
+            	String[] strings = ProgramParser.match(s);
+            	if(strings == null) {
+            		System.out.println("Invalid Instruction: " + s);
+            	}
+            	else {
+	            	M.getMemory().write(startingPC, String.join(" ", ProgramParser.match(s)), false);
+	            	startingPC+= 2;
+            	}
+            	s = sc.nextLine();
+            }
+            PCAfterLastInstruction = startingPC;
+            while(p.simulate());
+            
+            double amat;
+    		double level1Misses = p.M.getCaches().get(0).getMisses() + p.M.getCaches().get(1).getMisses();
+    		double level1Accesses = p.M.getCaches().get(0).getAccesses() + p.M.getCaches().get(1).getAccesses();
+        	if(p.M.getCaches().size() == 2) { // 1 Cache Level
+        		amat = 
+        		(double) level1Misses/ level1Accesses * p.M.getMemory().getCycles();
+        	}
+        	else if(p.M.getCaches().size() == 3) { // 2 Cache Levels
+            	amat =
+            	(double) level1Misses/ level1Accesses * p.M.getCaches().get(2).getCycles() +
+            	(double) level1Misses/ level1Accesses * p.M.getCaches().get(2).getMisses() / p.M.getCaches().get(2).getAccesses() * p.M.getMemory().getCycles();
+        	}
+        	else { // 3 Cache Levels
+            	amat = 
+            	(double) level1Misses/ level1Accesses * p.M.getCaches().get(2).getCycles() +
+            	(double) level1Misses/ level1Accesses * p.M.getCaches().get(2).getMisses() / p.M.getCaches().get(2).getAccesses() * p.M.getCaches().get(3).getCycles() +
+            	(double) level1Misses/ level1Accesses * p.M.getCaches().get(2).getMisses() / p.M.getCaches().get(2).getAccesses() * p.M.getCaches().get(3).getMisses() / p.M.getCaches().get(3).getAccesses() * p.M.getMemory().getCycles();
+        	}
+        	double cpiLoad = amat * p.loadInstructions / p.totalInstructions;
+        	double cpiBranch = amat * p.mispredictions / p.totalInstructions;
+        	double cpi = 1.0 + cpiLoad + cpiBranch;
+        	double ipc = 1.0 / cpi;
+        	System.out.println("The IPC: " + ipc);
+            System.out.println("Execution Time: " + p.cyclesSimulated + " cycles");
+            for(int i = 0; i < p.M.getCaches().size(); i++) {
+            	if(i == 0) System.out.println("The Hit Ratio of the 1st Cache: " + (double) (p.M.getCaches().get(0).getAccesses()+p.M.getCaches().get(1).getAccesses()-p.M.getCaches().get(0).getMisses()-p.M.getCaches().get(1).getMisses()) / (p.M.getCaches().get(0).getAccesses()+p.M.getCaches().get(1).getAccesses()) );
+            	else if(i == 2) System.out.println("The Hit Ratio of the 2nd Cache: " + (double) (p.M.getCaches().get(2).getAccesses()-p.M.getCaches().get(2).getMisses()) / p.M.getCaches().get(2).getAccesses());
+            	else if(i == 3) System.out.println("The Hit Ratio of the 3rd Cache: " + (double) (p.M.getCaches().get(3).getAccesses()-p.M.getCaches().get(3).getMisses()) / p.M.getCaches().get(3).getAccesses());
+            }
+            System.out.println("The global AMAT: " + amat + " cycles");
+            if(p.beqInstructions == 0) {
+            	System.out.println("The branch misprediction percentage is not available (No Branch Instructions)");
+            }
+            else {
+            	System.out.println(p.mispredictions * 100.0 / p.beqInstructions);
+            }
     }
 }

@@ -24,7 +24,7 @@ public class Memory {
 	 */
 	public Memory(int L, int cycles) {
 		this.L = L;
-		this.cycles = cycles;
+		this.setCycles(cycles);
 		this.data = new String[this.size];
 	}
 
@@ -110,5 +110,13 @@ public class Memory {
 //		mem.writeLine(2, new String[] { "a", "b", "c" });
 //		
 //		System.out.println(Arrays.toString(mem.readLine(2)));
+	}
+
+	public int getCycles() {
+		return cycles;
+	}
+
+	public void setCycles(int cycles) {
+		this.cycles = cycles;
 	}
 }

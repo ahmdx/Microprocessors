@@ -37,7 +37,7 @@ public class Cache {
 		this.S = S;
 		this.L = L;
 		this.m = m;
-		this.cycles = cycles;
+		this.setCycles(cycles);
 		this.writeHitPolicy = CacheWriteHitPolicy.WriteThrough;
 
 		this.C = S / L;
@@ -59,10 +59,13 @@ public class Cache {
 		this.S = S;
 		this.L = L;
 		this.m = m;
-		this.cycles = cycles;
+		this.setCycles(cycles);
 		this.writeHitPolicy = hitPolicy;
 
 		this.C = S / L;
+		
+		//System.out.println("C: " + C);
+		//System.out.println("M: " + m);
 
 		if (C < m) {
 			throw new InvalidNumberOfBanksException(
@@ -104,7 +107,7 @@ public class Cache {
 
 	public void print(int level) {
 		System.out.println("CACHE: ------------------------ LEVEL: " + level + " HIT %: "
-				+ (1 - this.misses / this.accesses) * 100);
+				+ (1 - this.getMisses() / this.getAccesses()) * 100);
 		for (int i = 0; i < this.content.length; i++) {
 			for (int j = 0; j < this.content[i].length; j++) {
 				if (this.content[i][j] != null) {
@@ -115,7 +118,7 @@ public class Cache {
 	}
 
 	public String read(int address) {
-		this.accesses++;
+		this.setAccesses(this.getAccesses() + 1);
 		int[] addr = getCacheAddress(address);
 		int tag = addr[0];
 		int index = addr[1];
@@ -127,12 +130,12 @@ public class Cache {
 				return entry.getByte(byteOffset);
 			}
 		}
-		this.misses++;
+		this.setMisses(this.getMisses() + 1);
 		return null;
 	}
 
 	public String[] readLine(int address) {
-		this.accesses++;
+		this.setAccesses(this.getAccesses() + 1);
 		int[] addr = getCacheAddress(address);
 		int tag = addr[0];
 		int index = addr[1];
@@ -143,12 +146,12 @@ public class Cache {
 				return entry.getData();
 			}
 		}
-		this.misses++;
+		this.setMisses(this.getMisses() + 1);
 		return null;
 	}
 
 	public String[][] write(int address, String data) {
-		this.accesses++;
+		this.setAccesses(this.getAccesses() + 1);
 		int[] addr = getCacheAddress(address);
 		int tag = addr[0];
 		int index = addr[1];
@@ -170,12 +173,12 @@ public class Cache {
 				}
 			}
 		}
-		this.misses++;
+		this.setMisses(this.getMisses() + 1);
 		return null;
 	}
 
 	public String[][] writeLine(int address, String[] data) {
-		this.accesses++;
+		this.setAccesses(this.getAccesses() + 1);
 		int[] addr = getCacheAddress(address);
 		int tag = addr[0];
 		int index = addr[1];
@@ -196,12 +199,12 @@ public class Cache {
 				}
 			}
 		}
-		this.misses++;
+		this.setMisses(this.getMisses() + 1);
 		return null;
 	}
 
 	public String[] writeMiss(int address, String[] data) {
-		this.accesses++;
+		this.setAccesses(this.getAccesses() + 1);
 		int[] addr = getCacheAddress(address);
 		int tag = addr[0];
 		int index = addr[1];
@@ -220,7 +223,7 @@ public class Cache {
 					setDirtyBit(entry);
 				}
 			} else {
-				this.misses++;
+				this.setMisses(this.getMisses() + 1);
 				this.content[index][j] = new CacheEntry(tag, data);
 				setDirtyBit(this.content[index][j]);
 				found = true;
@@ -232,7 +235,7 @@ public class Cache {
 		// random entry
 		//
 		if (!found) {
-			this.misses++;
+			this.setMisses(this.getMisses() + 1);
 			Random rand = new Random();
 			int randomEntry = rand.nextInt(m);
 			if (this.content[index][randomEntry].isDirty()) {
@@ -255,6 +258,30 @@ public class Cache {
 
 		// cache.write(4, "test");
 		// System.out.println(cache.read(4));
+	}
+
+	public float getAccesses() {
+		return accesses;
+	}
+
+	public void setAccesses(float accesses) {
+		this.accesses = accesses;
+	}
+
+	public float getMisses() {
+		return misses;
+	}
+
+	public void setMisses(float misses) {
+		this.misses = misses;
+	}
+
+	public int getCycles() {
+		return cycles;
+	}
+
+	public void setCycles(int cycles) {
+		this.cycles = cycles;
 	}
 
 }

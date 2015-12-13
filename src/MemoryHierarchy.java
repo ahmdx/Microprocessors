@@ -38,7 +38,7 @@ public class MemoryHierarchy {
 		this.cycles = cycles;
 		this.memoryCycles = memoryCycles;
 
-		this.memory = new Memory(L, memoryCycles); // Initialize
+		this.setMemory(new Memory(L, memoryCycles)); // Initialize
 													// memory.
 
 		// For the first level, Create separate data and instruction caches.
@@ -46,13 +46,13 @@ public class MemoryHierarchy {
 
 		Cache data = new Cache(S[0], L, m[0], cycles[0], policies[0]);
 		Cache instructions = new Cache(S[0], L, m[0], cycles[0], policies[0]);
-		caches.add(data);
-		caches.add(instructions);
+		getCaches().add(data);
+		getCaches().add(instructions);
 
 		// For the rest of the levels, add just one cache.
 		for (int i = 1; i < Math.min(numberOfCaches, 3); i++) {
 			Cache cache = new Cache(S[i], L, m[i], cycles[i], policies[i]);
-			caches.add(cache);
+			getCaches().add(cache);
 		}
 	}
 
@@ -76,9 +76,9 @@ public class MemoryHierarchy {
 
 		String res;
 		if (data) {
-			res = caches.get(0).read(address);
+			res = getCaches().get(0).read(address);
 		} else {
-			res = caches.get(1).read(address);
+			res = getCaches().get(1).read(address);
 		}
 
 		//
@@ -87,7 +87,7 @@ public class MemoryHierarchy {
 		//
 		this.accessCycles += this.cycles[0];
 		if (res != null) {
-			System.out.println("READ-C: " + this.accessCycles);
+			//System.out.println("READ-C: " + this.accessCycles);
 			// return res;
 			return new FetchedObject(res, this.accessCycles);
 		}
@@ -101,8 +101,8 @@ public class MemoryHierarchy {
 		// Searches other caches for the data
 		//
 		String[] lineContent = new String[] {};
-		for (int i = 2; i < this.caches.size(); i++) {
-			lineContent = this.caches.get(i).readLine(address);
+		for (int i = 2; i < this.getCaches().size(); i++) {
+			lineContent = this.getCaches().get(i).readLine(address);
 			this.accessCycles += this.cycles[i - 1];
 			//
 			// missLevel = i; Li cache miss; i > 1
@@ -117,31 +117,31 @@ public class MemoryHierarchy {
 		//
 		// Data is not available in any of the caches, read from Memory
 		//
-		if (missLevel == this.caches.size() - 1) {
-			lineContent = this.memory.readLine(address);
+		if (missLevel == this.getCaches().size() - 1) {
+			lineContent = this.getMemory().readLine(address);
 			this.accessCycles += this.memoryCycles;
-			System.out.print("MEM-R: ");
+			//System.out.print("MEM-R: ");
 		}
 
 		String[] oldLine = null;
 		for (int i = missLevel - 1; i > 0; i--) {
-			oldLine = this.caches.get(i + 1).writeMiss(address, lineContent);
+			oldLine = this.getCaches().get(i + 1).writeMiss(address, lineContent);
 			// if (oldLine != null) {
 			writeBack(i + 1, address, oldLine, false);
 			// }
 			this.accessCycles += this.cycles[i];
 		}
 		if (data) {
-			oldLine = this.caches.get(0).writeMiss(address, lineContent);
+			oldLine = this.getCaches().get(0).writeMiss(address, lineContent);
 		} else {
-			oldLine = this.caches.get(1).writeMiss(address, lineContent);
+			oldLine = this.getCaches().get(1).writeMiss(address, lineContent);
 		}
 		// if (oldLine != null) {
 		writeBack(1, address, oldLine, false);
 		// }
 		this.accessCycles += this.cycles[0];
 
-		System.out.println("READ-C: " + this.accessCycles);
+		//System.out.println("READ-C: " + this.accessCycles);
 		// return lineContent[getByteOffset(address)];
 		return new FetchedObject(lineContent[getByteOffset(address)], this.accessCycles);
 	}
@@ -165,9 +165,9 @@ public class MemoryHierarchy {
 		String[][] line = null;
 		String[] res = null, oldLine = null;
 		if (data) {
-			line = caches.get(0).write(address, content);
+			line = getCaches().get(0).write(address, content);
 		} else {
-			line = caches.get(1).write(address, content);
+			line = getCaches().get(1).write(address, content);
 		}
 		if (line != null) {
 			res = line[0];
@@ -179,7 +179,7 @@ public class MemoryHierarchy {
 		//
 		if (res != null) {
 			writeHit(1, address, res, oldLine);
-			System.out.println("WRITE-C: " + this.accessCycles);
+			//System.out.println("WRITE-C: " + this.accessCycles);
 			return this.accessCycles;
 		}
 		this.accessCycles += this.cycles[0];
@@ -189,8 +189,8 @@ public class MemoryHierarchy {
 		++missLevel;
 		res = null;
 		oldLine = null;
-		for (int i = 2; i < this.caches.size(); i++) {
-			line = this.caches.get(i).write(address, content);
+		for (int i = 2; i < this.getCaches().size(); i++) {
+			line = this.getCaches().get(i).write(address, content);
 			if (line != null) {
 				res = line[0];
 				oldLine = line[1];
@@ -215,30 +215,30 @@ public class MemoryHierarchy {
 		// Write to memory and then to other caches
 		// starting at the lowest level; first before the memory
 		//
-		if (missLevel == this.caches.size() - 1) {
-			this.memory.write(address, content, true);
-			res = this.memory.readLine(address);
+		if (missLevel == this.getCaches().size() - 1) {
+			this.getMemory().write(address, content, true);
+			res = this.getMemory().readLine(address);
 			this.accessCycles += this.memoryCycles;
 			// System.out.print("MEM-R: ");
 		}
 
 		for (int i = missLevel - 1; i > 0; i--) {
-			oldLine = this.caches.get(i + 1).writeMiss(address, res);
+			oldLine = this.getCaches().get(i + 1).writeMiss(address, res);
 			this.accessCycles += this.cycles[i];
 			if (oldLine != null) {
 				writeBack(i + 1, address, oldLine, false);
 			}
 		}
 		if (data) {
-			oldLine = this.caches.get(0).writeMiss(address, res);
+			oldLine = this.getCaches().get(0).writeMiss(address, res);
 		} else {
-			oldLine = this.caches.get(1).writeMiss(address, res);
+			oldLine = this.getCaches().get(1).writeMiss(address, res);
 		}
 		this.accessCycles += this.cycles[0];
 		if (oldLine != null) {
 			writeBack(1, address, oldLine, false);
 		}
-		System.out.println("WRITE-C: " + this.accessCycles);
+		//System.out.println("WRITE-C: " + this.accessCycles);
 		return this.accessCycles;
 	}
 
@@ -257,20 +257,20 @@ public class MemoryHierarchy {
 	 * 
 	 */
 	public void writeHit(int level, int address, String[] lineContent, String[] oldLine) {
-		System.out.println("HITL: " + level);
+		//System.out.println("HITL: " + level);
 		this.accessCycles += this.cycles[level - 1];
 
-		for (int i = level + 1; i < this.caches.size(); i++) {
-			if (this.caches.get(i - 1).getWriteHitPolicy() == CacheWriteHitPolicy.WriteThrough) {
-				this.caches.get(i).writeLine(address, lineContent);
+		for (int i = level + 1; i < this.getCaches().size(); i++) {
+			if (this.getCaches().get(i - 1).getWriteHitPolicy() == CacheWriteHitPolicy.WriteThrough) {
+				this.getCaches().get(i).writeLine(address, lineContent);
 				this.accessCycles += this.cycles[i - 1];
 			} else {
 				// this.accessCycles += this.cycles[i - 1];
-				writeBack(i - 1, address, this.caches.get(i).writeLine(address, oldLine)[1], false);
+				writeBack(i - 1, address, this.getCaches().get(i).writeLine(address, oldLine)[1], false);
 				return;
 			}
 		}
-		this.memory.writeLine(address, lineContent);
+		this.getMemory().writeLine(address, lineContent);
 		this.accessCycles += this.memoryCycles;
 	}
 
@@ -298,14 +298,14 @@ public class MemoryHierarchy {
 		//
 		// Write back to Memory (base case)
 		//
-		if (level == this.caches.size() - 1) {
-			System.out.println("OK-MEM");
-			this.memory.writeLine(address, content);
+		if (level == this.getCaches().size() - 1) {
+			//System.out.println("OK-MEM");
+			this.getMemory().writeLine(address, content);
 			this.accessCycles += this.memoryCycles;
 			return;
 		}
 		String line[][] = null;
-		line = this.caches.get(level + 1).writeLine(address, content);
+		line = this.getCaches().get(level + 1).writeLine(address, content);
 		if (line != null) {
 			writeBack(level + 1, address, line[1], false);
 		}
@@ -324,11 +324,11 @@ public class MemoryHierarchy {
 	}
 
 	public void print() {
-		this.memory.print();
-		this.caches.get(0).print(1);
-		this.caches.get(1).print(1);
-		for (int i = 2; i < this.caches.size(); i++) {
-			this.caches.get(i).print(i);
+		this.getMemory().print();
+		this.getCaches().get(0).print(1);
+		this.getCaches().get(1).print(1);
+		for (int i = 2; i < this.getCaches().size(); i++) {
+			this.getCaches().get(i).print(i);
 		}
 	}
 
@@ -353,6 +353,22 @@ public class MemoryHierarchy {
 		// System.out.println(h.read(38000));
 		// System.out.println();
 		h.print();
+	}
+
+	public ArrayList<Cache> getCaches() {
+		return caches;
+	}
+
+	public void setCaches(ArrayList<Cache> caches) {
+		this.caches = caches;
+	}
+
+	public Memory getMemory() {
+		return memory;
+	}
+
+	public void setMemory(Memory memory) {
+		this.memory = memory;
 	}
 
 }

@@ -511,11 +511,17 @@ public class Processor {
             Processor p = new Processor(M, pipelineWidth, insturctionBuffer, ROBsize, maxInstrs, numCycles);
             
             //M.getMemory().write(32768, "ADD R7 R7 R0", false);
-            System.out.println("Enter the starting address of your program (Should be >= 32768)");
-            int startingPC = sc.nextInt();
+            System.out.println("Enter the starting address of your program (.ORG \"StartingAddress\")");
+            sc.nextLine();
+            String org = sc.nextLine();
+            int startingPC = 32768;
+            String[] stringsORG = programParser.match(org);
+            if(stringsORG != null && stringsORG[0].equals(".ORG")) {
+            	startingPC+= Integer.parseInt(stringsORG[1]);
+            }
+            
             System.out.println("Enter the program");
             System.out.println("Finish by Entering a blank line");
-            sc.nextLine();
             String s = sc.nextLine();
             while(!s.equals("")) {
             	String[] strings = programParser.match(s);
@@ -523,8 +529,13 @@ public class Processor {
             		System.out.println("Invalid Instruction: " + s);
             	}
             	else {
-	            	M.getMemory().write(startingPC, String.join(" ", programParser.match(s)), false);
-	            	startingPC+= 2;
+            		if(strings[0].equals(".DATA")) {
+            			M.getMemory().write(Integer.parseInt(strings[2]), strings[1], false);
+            		}
+            		else {
+		            	M.getMemory().write(startingPC, String.join(" ", programParser.match(s)), false);
+		            	startingPC+= 2;
+            		}
             	}
             	s = sc.nextLine();
             }

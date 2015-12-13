@@ -442,6 +442,7 @@ public class Processor {
     }
 
     public static void main(String[] args) throws InvalidNumberOfBanksException {
+    		ProgramParser programParser = new ProgramParser();
             Scanner sc = new Scanner(System.in);
             System.out.println("Enter the number of cache Levels");
             int numCacheLevels = sc.nextInt();
@@ -517,12 +518,12 @@ public class Processor {
             sc.nextLine();
             String s = sc.nextLine();
             while(!s.equals("")) {
-            	String[] strings = ProgramParser.match(s);
+            	String[] strings = programParser.match(s);
             	if(strings == null) {
             		System.out.println("Invalid Instruction: " + s);
             	}
             	else {
-	            	M.getMemory().write(startingPC, String.join(" ", ProgramParser.match(s)), false);
+	            	M.getMemory().write(startingPC, String.join(" ", programParser.match(s)), false);
 	            	startingPC+= 2;
             	}
             	s = sc.nextLine();
@@ -552,6 +553,8 @@ public class Processor {
         	double cpiBranch = amat * p.mispredictions / p.totalInstructions;
         	double cpi = 1.0 + cpiLoad + cpiBranch;
         	double ipc = 1.0 / cpi;
+        	
+        	System.out.println();
         	System.out.println("The IPC: " + ipc);
             System.out.println("Execution Time: " + p.cyclesSimulated + " cycles");
             for(int i = 0; i < p.M.getCaches().size(); i++) {

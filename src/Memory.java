@@ -38,6 +38,9 @@ public class Memory {
 		if (count) {
 			this.reads++;
 		}
+		if (address % 2 != 0) {
+			address--;
+		}
 		return this.data[Math.min(this.size, address)];
 	}
 
@@ -68,6 +71,9 @@ public class Memory {
 	public String write(int address, String data, boolean count) {
 		if (count) {
 			this.writes++;
+		}
+		if (address % 2 != 0) {
+			address--;
 		}
 		this.data[Math.min(this.size, address)] = (data == null) ? "" : data;
 		return read(address, false);

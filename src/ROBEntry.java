@@ -5,6 +5,7 @@ public class ROBEntry {
 	int value;
 	int value2;
 	boolean ready;
+	int pc;
 	
 	public ROBEntry(InstrType instruction, int dest, int value, boolean ready) {
 		this.instruction = instruction;

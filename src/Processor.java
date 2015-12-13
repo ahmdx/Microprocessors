@@ -208,8 +208,8 @@ public class Processor {
         	cyclesSimulated += stallCycles;
         }
 		boolean allAfterLastInstruction = true;
-		for(int i = 0; i < rs.size(); i++) {
-			if(rs.get(i).pc < PCAfterLastInstruction) {
+		for(int i = 0; i < ROBsize; i++) {
+			if(ROB.get(i) != null && ROB.get(i).pc < PCAfterLastInstruction) {
 				allAfterLastInstruction = false;
 				break;
 			}
@@ -329,6 +329,7 @@ public class Processor {
                 regStatus[rd] = head;
             }
             ROBEntry sd = new ROBEntry(instr.getInstrType(), rd, 0, false); // FIx -1 thingy
+            sd.pc = e.pc;
             ROB.set(tail - 1, sd);
             return true;
         }
